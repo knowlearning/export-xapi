@@ -3,35 +3,14 @@
   import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url'
   import initSqlJs from 'sql.js'
   import QueryCell from './QueryCell.vue'
+  import * as columnData from './column-data.js'
 
   const embedPathItem = ref('57c04dc8-f641-49f9-8d3c-88cdfccb402d')
   const database = ref(null)
   const data = ref(null)
   const tableData = ref(null)
   const authorityDatabases = reactive({})
-  const columns = reactive([
-    {
-      query: `SELECT response AS value
-FROM statements
-WHERE verb = 'answered'
-AND json_extract(extensions, '$.item.name') = 'seq1'`
-    },
-    { query: `SELECT response AS value
-FROM statements
-WHERE verb = 'answered'
-AND json_extract(extensions, '$.item.name') = 'seq2'
-    ` },
-    { query: `SELECT response AS value
-FROM statements
-WHERE verb = 'answered'
-AND json_extract(extensions, '$.item.name') = 'seq3'
-    ` },
-    { query: `SELECT stored AS value
-FROM statements
-WHERE verb = 'initialized'
-AND object = 'dashboard'`
-    }
-  ])
+  const columns = reactive(columnData.questionaire)
 
   const SQL = await initSqlJs({
     locateFile: () => wasmUrl
@@ -95,7 +74,6 @@ AND object = 'dashboard'`
 
     // build a shard DB per authority
     for (const { authority } of tableData.value) {
-      console.log('CREATING AUTHORITY DB', authority)
       const shardDb = new SQL.Database()
 
       // recreate the statements table schema
@@ -146,33 +124,124 @@ AND object = 'dashboard'`
         placeholder="embed path filter"
       />
       <button @click="loadStatements(embedPathItem)">load</button>
-      <table
+      <div
+        class="table-container"
         v-if="tableData"
       >
-        <thead>
-          <tr>
-            <th>user</th>
-            <th v-for="_, index in columns">
-              <textarea
-                :key="index"
-                v-model="columns[index].query"
-              />
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="d in tableData">
-            <td>{{ d.authority }}</td>
-            <td v-for="column in columns">
-              <QueryCell
-                :database="authorityDatabases[d.authority]"
-                :authority="d.authority"
-                :column="column"
-              />
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <table>
+          <thead>
+            <tr>
+              <th>user</th>
+              <th v-for="column, index in columns">
+                {{ column.name }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="d in tableData">
+              <td>{{ d.authority }}</td>
+              <td v-for="column in columns">
+                <QueryCell
+                  :database="authorityDatabases[d.authority]"
+                  :authority="d.authority"
+                  :rowKey="d"
+                  :column="column"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </Suspense>
 </template>
+
+<style>
+  :root {
+    --table-bg: #fff;
+    --table-header-bg: #fafafa;
+    --table-border: #e5e7eb;
+    --table-text: #111827;
+    --table-muted: #6b7280;
+    --table-row-hover: #eeeeee;
+    --table-radius: 8px;
+  }
+
+  /* Wrapper for scroll and layout */
+  .table-container {
+    width: 100%;
+    overflow-x: auto;
+    box-sizing: border-box;
+  }
+
+  /* Base table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--table-bg);
+    color: var(--table-text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    border: 1px solid var(--table-border);
+    border-radius: var(--table-radius);
+  }
+
+  /* Header */
+  thead {
+    background: var(--table-header-bg);
+  }
+
+  th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--table-muted);
+    border-bottom: 1px solid var(--table-border);
+    white-space: nowrap;
+  }
+
+  /* Body */
+  td {
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid var(--table-border);
+    vertical-align: middle;
+  }
+
+  /* Subtle zebra striping */
+  tbody tr:nth-child(even) {
+    background: #fcfcfc;
+  }
+
+  /* Hover effect */
+  tbody tr:hover {
+    background: var(--table-row-hover) !important;
+    transition: background-color 0.15s ease-in-out;
+  }
+
+  /* Numeric columns */
+  td.num,
+  th.num {
+    text-align: right;
+  }
+
+  /* Remove bottom border on last row */
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* Clickable rows */
+  tbody tr[data-clickable="true"] {
+    cursor: pointer;
+  }
+
+  /* Compact option (use table.compact if desired) */
+  table.compact th,
+  table.compact td {
+    padding: 0.55rem 0.8rem;
+  }
+
+</style>

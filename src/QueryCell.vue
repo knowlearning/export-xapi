@@ -29,5 +29,5 @@
 </script>
 
 <template>
-  <pre>{{ x?.[0]?.value }}</pre>
+  <span>{{ x?.[0]?.value }}</span>
 </template>
