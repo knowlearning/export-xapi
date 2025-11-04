@@ -10,11 +10,12 @@
   const tableData = ref(null)
   const authorityDatabases = reactive({})
   const columns = reactive([
-    { query: `SELECT response AS value
+    {
+      query: `SELECT response AS value
 FROM statements
 WHERE verb = 'answered'
-AND json_extract(extensions, '$.item.name') = 'seq1'
-    ` },
+AND json_extract(extensions, '$.item.name') = 'seq1'`
+    },
     { query: `SELECT response AS value
 FROM statements
 WHERE verb = 'answered'
@@ -166,7 +167,7 @@ AND object = 'dashboard'`
               <QueryCell
                 :database="authorityDatabases[d.authority]"
                 :authority="d.authority"
-                :query="column.query"
+                :column="column"
               />
             </td>
           </tr>

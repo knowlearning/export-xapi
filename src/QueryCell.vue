@@ -3,15 +3,13 @@
 
   const props = defineProps({
     database: Object,
-    query: String,
+    column: Object,
     authority: String
   })
 
   const x = computed(() => {
     const db = props.database
-    const sql = props.query
-
-    console.log(sql)
+    const sql = props.column.query
 
     if (!db || !sql) return null
 
@@ -31,5 +29,5 @@
 </script>
 
 <template>
-  <pre>{{ x }}</pre>
+  <pre>{{ x?.[0]?.value }}</pre>
 </template>
