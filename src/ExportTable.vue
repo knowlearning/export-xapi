@@ -8,13 +8,28 @@
   const database = ref(null)
   const data = ref(null)
   const tableData = ref(null)
+  const authorityDatabases = reactive({})
   const columns = reactive([
-    { query: `SELECT stored
+    { query: `SELECT response AS value
+FROM statements
+WHERE verb = 'answered'
+AND json_extract(extensions, '$.item.name') = 'seq1'
+    ` },
+    { query: `SELECT response AS value
+FROM statements
+WHERE verb = 'answered'
+AND json_extract(extensions, '$.item.name') = 'seq2'
+    ` },
+    { query: `SELECT response AS value
+FROM statements
+WHERE verb = 'answered'
+AND json_extract(extensions, '$.item.name') = 'seq3'
+    ` },
+    { query: `SELECT stored AS value
 FROM statements
 WHERE verb = 'initialized'
 AND object = 'dashboard'`
-    },
-    { query: `` }
+    }
   ])
 
   const SQL = await initSqlJs({
@@ -69,6 +84,55 @@ AND object = 'dashboard'`
       SELECT DISTINCT authority
       FROM statements
     `)[0]?.values.map(([authority]) => ({ authority })) || []
+
+
+    // CONSTRUCT AUTHORITY SPECIFIC SHARDS
+    // clear any old shard DBs
+    for (const k of Object.keys(authorityDatabases)) {
+      delete authorityDatabases[k]
+    }
+
+    // build a shard DB per authority
+    for (const { authority } of tableData.value) {
+      console.log('CREATING AUTHORITY DB', authority)
+      const shardDb = new SQL.Database()
+
+      // recreate the statements table schema
+      shardDb.run(`
+        CREATE TABLE statements (
+          id TEXT PRIMARY KEY,
+          ${
+            keys
+              .filter(name => name !== 'id')
+              .map(name => `${name} TEXT`)
+              .join(',\n')
+          }
+        )
+      `)
+
+      // pull rows for this authority from the main DB
+      const select = db.prepare(`
+        SELECT ${keys.join(', ')}
+        FROM statements
+        WHERE authority = ?
+      `)
+
+      const insert = shardDb.prepare(`
+        INSERT INTO statements (${keys.join(', ')})
+        VALUES (${keys.map(() => '?').join(', ')})
+      `)
+
+      select.bind([authority])
+      while (select.step()) {
+        const row = select.get()
+        insert.run(row)
+      }
+
+      select.free()
+      insert.free()
+
+      authorityDatabases[authority] = shardDb
+    }
   }
 
 </script>
@@ -100,7 +164,7 @@ AND object = 'dashboard'`
             <td>{{ d.authority }}</td>
             <td v-for="column in columns">
               <QueryCell
-                :database="database"
+                :database="authorityDatabases[d.authority]"
                 :authority="d.authority"
                 :query="column.query"
               />
