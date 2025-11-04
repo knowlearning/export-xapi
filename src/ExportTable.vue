@@ -1,11 +1,21 @@
 <script setup>
-  import { ref } from 'vue'
+  import { ref, reactive } from 'vue'
   import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url'
   import initSqlJs from 'sql.js'
+  import QueryCell from './QueryCell.vue'
 
-  const embedPathItem = ref(null)
+  const embedPathItem = ref('57c04dc8-f641-49f9-8d3c-88cdfccb402d')
+  const database = ref(null)
   const data = ref(null)
   const tableData = ref(null)
+  const columns = reactive([
+    { query: `SELECT stored
+FROM statements
+WHERE verb = 'initialized'
+AND object = 'dashboard'`
+    },
+    { query: `` }
+  ])
 
   const SQL = await initSqlJs({
     locateFile: () => wasmUrl
@@ -20,6 +30,7 @@
     if (data.length === 0) return
 
     const db = new SQL.Database()
+    database.value = db
 
     const keys = Object.keys(data.value[0])
 
@@ -54,13 +65,10 @@
 
     insert.free()
 
-    const result = db.exec(`
+    tableData.value = db.exec(`
       SELECT DISTINCT authority
       FROM statements
-    `)
-    tableData.value = result[0]?.values.map(([authority]) => ({
-      authority
-    })) || []
+    `)[0]?.values.map(([authority]) => ({ authority })) || []
   }
 
 </script>
@@ -79,11 +87,24 @@
         <thead>
           <tr>
             <th>user</th>
+            <th v-for="_, index in columns">
+              <textarea
+                :key="index"
+                v-model="columns[index].query"
+              />
+            </th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="d in tableData">
             <td>{{ d.authority }}</td>
+            <td v-for="column in columns">
+              <QueryCell
+                :database="database"
+                :authority="d.authority"
+                :query="column.query"
+              />
+            </td>
           </tr>
         </tbody>
       </table>
