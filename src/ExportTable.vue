@@ -5,7 +5,7 @@
   import * as columnData from './column-data.js'
   import initStatementsDatabase from './init-statements-database.js'
 
-  const embedPathItem = ref('57c04dc8-f641-49f9-8d3c-88cdfccb402d')
+  const embedPathItem = ref(columnData.questionaire.context)
   const shardRows = ref(null)
   const shardDBs = reactive({})
   const tableDescription = reactive(columnData.questionaire)

@@ -1,0 +1,43 @@
+
+Assignments:
+
+dc2a19e3-13c5-452a-97c0-c59fc845d111
+c7e8acd7-75dc-4bbc-9085-cf3882aa3745
+6bc0f033-98ee-4efc-8898-f3d485797c40
+57c04dc8-f641-49f9-8d3c-88cdfccb402d
+
+Sequences:
+
+db9a2670-8d78-11f0-a6e9-f58b30f7d3cd - teacher questionaire start
+  names in questionaire = ['tec1', 'tec2', 'tec2a', 'tec3', 'tec4', 'tec5', 'tec6', 'tec7', 'tec8', 'tec8a', 'tec9', 'tec9a', 'tea1', 'get1', 'grt1', 'tea2', 'tea3']
+f8d047f0-8d8d-11f0-ba51-f9f87536173e
+  names in questionaire = ['seq1', 'seq2', 'seq3', 'stu1', 'stu1a', 'ti1', 'ti2', 'lev1', 'lev2', 'use1', 'use2', 'use3', 'use4', 'use5']
+fc3d1870-8fcf-11f0-8e12-696654a5a1b3
+  names in questionaire = ['tea2', 'tea3', 'tra1', 'tra2', 'tra3', 'tra4', 'tra5', 'log1', 'log2', 'log3', 'log4', 'log5', 'log6', 'int1', 'int2', 'int3', 'int4', 'int5', 'int6', 'int6a', 'cur1', 'cur1a', 'cur2', 'cur2a', 'imp1', 'imp2', 'imp3', 'imp4', 'rec1', 'rec1a', 'rec2', 'sp1', 'sp2', 'sp3', 'sp4']
+6c903170-8fe4-11f0-8e12-696654a5a1b3
+  names in questionaire = ['read1', 'read2', 'read3', 'read4', 'read5', 'read6', 'read7', 'read8', 'read9', 'read10', 'read11', 'read12', 'read13', 'read14', 'read15', 'type1', 'msa1', 'msa2', 'msa3', 'msa4', 'msa5', 'msa6', 'msa7', 'exp1', 'exp2', 'dig1', 'dig2', 'ges1', 'grs1', 'ses1']
+701e0330-9241-11f0-9c53-bd53f249af75
+  names in questionaire = ['anx1', 'anx2', 'anx3', 'anx4', 'anx5', 'anx6', 'anx7', 'app1', 'app2', 'app3', 'app4', 'app5', 'app6', 'app7', 'app8', 'app9', 'con1', 'con2']
+9108d4d0-9241-11f0-9c53-bd53f249af75
+  names in questionaire = ['fun1', 'fun2', 'ins1', 'ins2', 'ins3', 'ref1', 'ref2', 'chat1', 'chat2', 'chat3', 'chat4']
+c8973e50-9241-11f0-9c53-bd53f249af75
+  names in questionaire = ['fun1', 'fun2', 'ins1', 'ins2', 'ins3', 'ref1', 'ref2']
+
+
+
+const id = 'c8973e50-9241-11f0-9c53-bd53f249af75'
+const sequence = await Agent.state(id)
+
+const surveyPages = await Promise.all(
+  sequence
+    .items
+    .map(item => Agent.state(item.id))
+)
+
+const names = (
+  surveyPages
+    .map(s => s.formData.map(d => d.name))
+    .flat()
+)
+
+console.log(names)

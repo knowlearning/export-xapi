@@ -1,4 +1,7 @@
+const names = ['tec1', 'tec2', 'tec2a', 'tec3', 'tec4', 'tec5', 'tec6', 'tec7', 'tec8', 'tec8a', 'tec9', 'tec9a', 'tea1', 'get1', 'grt1', 'tea2', 'tea3']
+
 export const questionaire = {
+  context: 'db9a2670-8d78-11f0-a6e9-f58b30f7d3cd',
   shardQuery: `SELECT DISTINCT
   authority AS user,
   json_extract(embed_path, '$[0]') AS assignment
@@ -8,46 +11,14 @@ WHERE json_array_length(embed_path) = 3`,
 FROM statements
 WHERE authority = $user AND json_extract(embed_path, '$[0]') = $assignment`,
   columns: [
-    {
-      name: 'seq1',
+    ...names.map(name => ({
+      name,
       query: `SELECT response AS value
 FROM statements
 WHERE verb = 'answered'
-  AND json_extract(extensions, '$.item.name') = 'seq1'
+  AND json_extract(extensions, '$.item.name') = '${name}'
 ORDER BY stored DESC LIMIT 1`
-    },
-    {
-      name: 'seq2',
-      query: `SELECT response AS value
-FROM statements
-WHERE verb = 'answered'
-  AND json_extract(extensions, '$.item.name') = 'seq2'
-ORDER BY stored DESC LIMIT 1`
-    },
-    {
-      name: 'seq3',
-      query: `SELECT response AS value
-FROM statements
-WHERE verb = 'answered'
-  AND json_extract(extensions, '$.item.name') = 'seq3'
-ORDER BY stored DESC LIMIT 1
-    ` },
-    {
-      name: 'stu1a',
-      query: `SELECT response AS value
-FROM statements
-WHERE verb = 'answered'
-  AND json_extract(extensions, '$.item.name') = 'stu1a'
-ORDER BY stored DESC LIMIT 1
-    ` },
-    {
-      name: 'ti1',
-      query: `SELECT response AS value
-FROM statements
-WHERE verb = 'answered'
-  AND json_extract(extensions, '$.item.name') = 'ti1'
-ORDER BY stored DESC LIMIT 1
-    ` },
+    })),
     {
       name: 'all responses',
       query: `SELECT
