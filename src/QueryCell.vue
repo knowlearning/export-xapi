@@ -3,8 +3,7 @@
 
   const props = defineProps({
     database: Object,
-    column: Object,
-    authority: String
+    column: Object
   })
 
   const x = computed(() => {

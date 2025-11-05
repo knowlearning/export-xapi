@@ -1,34 +1,24 @@
 <script setup>
   import { ref, reactive } from 'vue'
-  import wasmUrl from 'sql.js/dist/sql-wasm.wasm?url'
-  import initSqlJs from 'sql.js'
+  import initSQLite from './sqlite.js'
   import QueryCell from './QueryCell.vue'
   import * as columnData from './column-data.js'
 
   const embedPathItem = ref('57c04dc8-f641-49f9-8d3c-88cdfccb402d')
-  const database = ref(null)
-  const data = ref(null)
   const tableData = ref(null)
   const authorityDatabases = reactive({})
-  const columns = reactive(columnData.questionaire)
-
-  const SQL = await initSqlJs({
-    locateFile: () => wasmUrl
-  })
+  const tableDescription = reactive(columnData.questionaire)
+  const SQLite = await initSQLite()
 
   async function loadStatements(epItem) {
-    data.value = null
     tableData.value = null
 
-    data.value = await Agent.query('statements-in-context', [epItem], 'xapi.knowlearning.systems')
-
+    const data = await Agent.query('statements-in-context', [epItem], 'xapi.knowlearning.systems')
     if (data.length === 0) return
 
-    const db = new SQL.Database()
-    database.value = db
+    const keys = Object.keys(data[0])
 
-    const keys = Object.keys(data.value[0])
-
+    const db = new SQLite.Database()
     db.run(`
       CREATE TABLE statements (
         id TEXT PRIMARY KEY,
@@ -46,8 +36,7 @@
         INTO statements (${keys.join(', ')})
         VALUES (${keys.map(k => '?').join(', ')})
     `)
-
-    for (const p of data.value) {
+    for (const p of data) {
       insert.run(
         Object.values(p).map(v => {
           if (v === null || v === undefined) return null
@@ -57,14 +46,15 @@
         })
       )
     }
-
     insert.free()
 
-    tableData.value = db.exec(`
-      SELECT DISTINCT authority
-      FROM statements
-    `)[0]?.values.map(([authority]) => ({ authority })) || []
+    const stmt = db.prepare(tableDescription.shardQuery)
 
+    const rows = []
+    while (stmt.step()) rows.push(stmt.getAsObject())
+    stmt.free()
+
+    tableData.value = rows
 
     // CONSTRUCT AUTHORITY SPECIFIC SHARDS
     // clear any old shard DBs
@@ -73,8 +63,8 @@
     }
 
     // build a shard DB per authority
-    for (const { authority } of tableData.value) {
-      const shardDb = new SQL.Database()
+    for (const { user } of tableData.value) {
+      const shardDb = new SQLite.Database()
 
       // recreate the statements table schema
       shardDb.run(`
@@ -101,7 +91,7 @@
         VALUES (${keys.map(() => '?').join(', ')})
       `)
 
-      select.bind([authority])
+      select.bind([user])
       while (select.step()) {
         const row = select.get()
         insert.run(row)
@@ -110,7 +100,7 @@
       select.free()
       insert.free()
 
-      authorityDatabases[authority] = shardDb
+      authorityDatabases[user] = shardDb
     }
   }
 
@@ -132,25 +122,33 @@
           <thead>
             <tr>
               <th>user</th>
-              <th v-for="column, index in columns">
+              <th v-for="column, index in tableDescription.columns">
                 {{ column.name }}
               </th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="d in tableData">
-              <td>{{ d.authority }}</td>
-              <td v-for="column in columns">
+              <td>{{ d.user }}</td>
+              <td v-for="column in tableDescription.columns">
                 <QueryCell
-                  :database="authorityDatabases[d.authority]"
-                  :authority="d.authority"
+                  :database="authorityDatabases[d.user]"
                   :rowKey="d"
                   :column="column"
+                  :key="column.query"
                 />
               </td>
             </tr>
           </tbody>
         </table>
+      </div>
+      <div
+        class="column-info"
+        v-for="column, index in tableDescription.columns"
+        :key="index"
+      >
+        <input v-model="tableDescription.columns[index].name" /><br>
+        <textarea v-model="tableDescription.columns[index].query" />
       </div>
     </div>
   </Suspense>
@@ -242,6 +240,24 @@
   table.compact th,
   table.compact td {
     padding: 0.55rem 0.8rem;
+  }
+
+  .column-info {
+    padding: 8px;
+    background: lightgrey;
+    margin-bottom: 16px;
+  }
+
+  .column-info textarea,
+  .column-info input {
+    display: block;
+    width: calc(100% - 6px);
+    border: none;
+  }
+
+  .column-info textarea {
+    height: 100px;
+    resize: vertical;
   }
 
 </style>
