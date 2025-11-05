@@ -6,7 +6,7 @@
 
   const embedPathItem = ref('57c04dc8-f641-49f9-8d3c-88cdfccb402d')
   const tableData = ref(null)
-  const authorityDatabases = reactive({})
+  const shardDBs = reactive({})
   const tableDescription = reactive(columnData.questionaire)
   const SQLite = await initSQLite()
 
@@ -49,21 +49,19 @@
     insert.free()
 
     const stmt = db.prepare(tableDescription.shardQuery)
-
     const rows = []
     while (stmt.step()) rows.push(stmt.getAsObject())
     stmt.free()
 
     tableData.value = rows
 
-    // CONSTRUCT AUTHORITY SPECIFIC SHARDS
-    // clear any old shard DBs
-    for (const k of Object.keys(authorityDatabases)) {
-      delete authorityDatabases[k]
-    }
+    // CONSTRUCT SHARD SPECIFIC DATABASES
+    // clear old
+    for (const k of Object.keys(shardDBs)) delete shardDBs[k]
 
-    // build a shard DB per authority
-    for (const { user } of tableData.value) {
+    // build each shardDB
+    for (const keyColumns of tableData.value) {
+      const { user, assignment } = keyColumns
       const shardDb = new SQLite.Database()
 
       // recreate the statements table schema
@@ -83,7 +81,7 @@
       const select = db.prepare(`
         SELECT ${keys.join(', ')}
         FROM statements
-        WHERE authority = ?
+        WHERE ${ tableDescription.shardWhereClause }
       `)
 
       const insert = shardDb.prepare(`
@@ -91,7 +89,7 @@
         VALUES (${keys.map(() => '?').join(', ')})
       `)
 
-      select.bind([user])
+      select.bind([user, assignment]) //  TODO: do by keyword and use all "keyColumns"
       while (select.step()) {
         const row = select.get()
         insert.run(row)
@@ -100,7 +98,7 @@
       select.free()
       insert.free()
 
-      authorityDatabases[user] = shardDb
+      shardDBs[JSON.stringify(keyColumns)] = shardDb
     }
   }
 
@@ -121,7 +119,7 @@
         <table>
           <thead>
             <tr>
-              <th>user</th>
+              <th v-for="_, key in tableData[0]">{{ key }}</th>
               <th v-for="column, index in tableDescription.columns">
                 {{ column.name }}
               </th>
@@ -129,10 +127,10 @@
           </thead>
           <tbody>
             <tr v-for="d in tableData">
-              <td>{{ d.user }}</td>
+              <td v-for="value in d">{{ value }}</td>
               <td v-for="column in tableDescription.columns">
                 <QueryCell
-                  :database="authorityDatabases[d.user]"
+                  :database="shardDBs[JSON.stringify(d)]"
                   :rowKey="d"
                   :column="column"
                   :key="column.query"
@@ -141,14 +139,6 @@
             </tr>
           </tbody>
         </table>
-      </div>
-      <div
-        class="column-info"
-        v-for="column, index in tableDescription.columns"
-        :key="index"
-      >
-        <input v-model="tableDescription.columns[index].name" /><br>
-        <textarea v-model="tableDescription.columns[index].query" />
       </div>
     </div>
   </Suspense>
