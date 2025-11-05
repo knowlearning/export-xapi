@@ -78,18 +78,24 @@
       `)
 
       // pull rows for this authority from the main DB
-      const select = db.prepare(`
-        SELECT ${keys.join(', ')}
-        FROM statements
-        WHERE ${ tableDescription.shardWhereClause }
-      `)
+      const select = db.prepare(tableDescription.shardQuery2)
 
       const insert = shardDb.prepare(`
         INSERT INTO statements (${keys.join(', ')})
         VALUES (${keys.map(() => '?').join(', ')})
       `)
 
-      select.bind([user, assignment]) //  TODO: do by keyword and use all "keyColumns"
+      //  construct $NAME format params
+      const params = (
+        Object
+          .entries(keyColumns)
+          .reduce((a, [k, v]) => {
+            a['$'+k] = v
+            return a
+          }, {})
+      )
+      select.bind(params)
+
       while (select.step()) {
         const row = select.get()
         insert.run(row)

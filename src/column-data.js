@@ -4,7 +4,9 @@ export const questionaire = {
   json_extract(embed_path, '$[0]') AS assignment
 FROM statements
 WHERE json_array_length(embed_path) = 3`,
-  shardWhereClause: `authority = ? AND json_extract(embed_path, '$[0]') = ?`,
+  shardQuery2: `SELECT *
+FROM statements
+WHERE authority = $user AND json_extract(embed_path, '$[0]') = $assignment`,
   columns: [
     {
       name: 'seq1',
@@ -36,6 +38,14 @@ ORDER BY stored DESC LIMIT 1
 FROM statements
 WHERE verb = 'answered'
   AND json_extract(extensions, '$.item.name') = 'stu1a'
+ORDER BY stored DESC LIMIT 1
+    ` },
+    {
+      name: 'ti1',
+      query: `SELECT response AS value
+FROM statements
+WHERE verb = 'answered'
+  AND json_extract(extensions, '$.item.name') = 'ti1'
 ORDER BY stored DESC LIMIT 1
     ` },
     {
