@@ -3,65 +3,32 @@
   import initSQLite from './sqlite.js'
   import QueryCell from './QueryCell.vue'
   import * as columnData from './column-data.js'
+  import initStatementsDatabase from './init-statements-database.js'
 
   const embedPathItem = ref('57c04dc8-f641-49f9-8d3c-88cdfccb402d')
-  const tableData = ref(null)
+  const shardRows = ref(null)
   const shardDBs = reactive({})
   const tableDescription = reactive(columnData.questionaire)
   const SQLite = await initSQLite()
 
   async function loadStatements(epItem) {
-    tableData.value = null
+    shardRows.value = null
 
-    const data = await Agent.query('statements-in-context', [epItem], 'xapi.knowlearning.systems')
-    if (data.length === 0) return
-
-    const keys = Object.keys(data[0])
-
-    const db = new SQLite.Database()
-    db.run(`
-      CREATE TABLE statements (
-        id TEXT PRIMARY KEY,
-        ${
-          keys
-            .filter(name => name !== 'id')
-            .map(name => `${name} TEXT`)
-            .join(',\n')
-        }
-      );
-    `)
-
-    const insert = db.prepare(`
-      INSERT
-        INTO statements (${keys.join(', ')})
-        VALUES (${keys.map(k => '?').join(', ')})
-    `)
-    for (const p of data) {
-      insert.run(
-        Object.values(p).map(v => {
-          if (v === null || v === undefined) return null
-          if (typeof v === 'object') return JSON.stringify(v)
-          if (typeof v === 'boolean') return v ? '1' : '0'
-          return String(v)
-        })
-      )
-    }
-    insert.free()
+    const [db, keys] = await initStatementsDatabase(epItem)
 
     const stmt = db.prepare(tableDescription.shardQuery)
     const rows = []
     while (stmt.step()) rows.push(stmt.getAsObject())
     stmt.free()
 
-    tableData.value = rows
+    shardRows.value = rows
 
     // CONSTRUCT SHARD SPECIFIC DATABASES
     // clear old
     for (const k of Object.keys(shardDBs)) delete shardDBs[k]
 
     // build each shardDB
-    for (const keyColumns of tableData.value) {
-      const { user, assignment } = keyColumns
+    for (const keyColumns of shardRows.value) {
       const shardDb = new SQLite.Database()
 
       // recreate the statements table schema
@@ -120,19 +87,19 @@
       <button @click="loadStatements(embedPathItem)">load</button>
       <div
         class="table-container"
-        v-if="tableData"
+        v-if="shardRows"
       >
         <table>
           <thead>
             <tr>
-              <th v-for="_, key in tableData[0]">{{ key }}</th>
+              <th v-for="_, key in shardRows[0]">{{ key }}</th>
               <th v-for="column, index in tableDescription.columns">
                 {{ column.name }}
               </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="d in tableData">
+            <tr v-for="d in shardRows">
               <td v-for="value in d">{{ value }}</td>
               <td v-for="column in tableDescription.columns">
                 <QueryCell
