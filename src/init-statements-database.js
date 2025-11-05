@@ -36,5 +36,5 @@ export default async function (context) {
     )
   }
   insert.free()
-  return [db, keys]
+  return db
 }

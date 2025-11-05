@@ -14,7 +14,7 @@
   async function loadStatements(epItem) {
     shardRows.value = null
 
-    const [db, keys] = await initStatementsDatabase(epItem)
+    const db = await initStatementsDatabase(epItem)
 
     const stmt = db.prepare(tableDescription.shardQuery)
     const rows = []
@@ -30,8 +30,19 @@
     // build each shardDB
     for (const keyColumns of shardRows.value) {
       const shardDb = new SQLite.Database()
+      const select = db.prepare(tableDescription.shardQuery2)
 
-      // recreate the statements table schema
+      //  construct $NAME format params
+      select
+        .bind(
+          Object
+            .entries(keyColumns)
+            .reduce((a, [k, v]) => (a[`$${k}`]=v, a), {})
+        )
+
+      const keys = select.getColumnNames()
+
+      // create the shard table schema
       shardDb.run(`
         CREATE TABLE statements (
           id TEXT PRIMARY KEY,
@@ -44,29 +55,14 @@
         )
       `)
 
-      // pull rows for this authority from the main DB
-      const select = db.prepare(tableDescription.shardQuery2)
-
       const insert = shardDb.prepare(`
-        INSERT INTO statements (${keys.join(', ')})
-        VALUES (${keys.map(() => '?').join(', ')})
+        INSERT INTO statements
+          (${keys.join(', ')})
+        VALUES
+          (${keys.map(() => '?').join(', ')})
       `)
 
-      //  construct $NAME format params
-      const params = (
-        Object
-          .entries(keyColumns)
-          .reduce((a, [k, v]) => {
-            a['$'+k] = v
-            return a
-          }, {})
-      )
-      select.bind(params)
-
-      while (select.step()) {
-        const row = select.get()
-        insert.run(row)
-      }
+      while (select.step()) insert.run(select.get())
 
       select.free()
       insert.free()
