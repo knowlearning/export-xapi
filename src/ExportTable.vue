@@ -8,6 +8,7 @@
   const embedPathItem = ref('f8d047f0-8d8d-11f0-ba51-f9f87536173e')
   const shardRows = ref(null)
   const shardDBs = reactive({})
+  const fullDb = ref(null)
   const SQLite = await initSQLite()
   const tableKeys = ref(null)
   const tableData = ref(null)
@@ -17,6 +18,7 @@
 
     const tableDescription = await constructColumnData(epItem)
     const db = await initStatementsDatabase(epItem)
+    fullDb.value = db
 
     const stmt = db.prepare(tableDescription.shardQuery)
     const rows = []
@@ -106,6 +108,31 @@
     )
   }
 
+  function downloadRaw(sqliteDB) {
+    if (!sqliteDB) return
+
+    const stmt = sqliteDB.prepare('SELECT * FROM statements')
+    const headers = stmt.getColumnNames()
+    const rows = []
+
+    try {
+      while (stmt.step()) {
+        const row = stmt.get().map(v =>
+          v == null ? '' : String(v)
+        )
+        rows.push(row)
+      }
+    } finally {
+      stmt.free()
+    }
+
+    downloadCSV(
+      `${embedPathItem.value}-raw-${new Date().toISOString()}.csv`,
+      headers,
+      rows
+    )
+  }
+
 </script>
 
 <template>
@@ -128,20 +155,26 @@
           hide-details
           @keypress.enter="loadStatements(embedPathItem)"
         >
-          <template #append-inner>
-            <v-btn
-              color="primary"
-              @click="loadStatements(embedPathItem)"
-            >
-              load
-            </v-btn>
-          </template>
           <template #prepend-inner>
             <v-btn
               v-if="shardRows"
               @click="download"
             >
               download
+            </v-btn>
+            <v-btn
+              v-if="shardRows"
+              @click="downloadRaw(fullDb)"
+            >
+              Download Raw xAPI
+            </v-btn>
+          </template>
+          <template #append-inner>
+            <v-btn
+              color="primary"
+              @click="loadStatements(embedPathItem)"
+            >
+              load
             </v-btn>
           </template>
         </v-text-field>
@@ -154,10 +187,6 @@
         <v-data-table
           :headers="tableKeys.map(key => ({ key, title: key }))"
           :items="tableData.map((row, i) => {
-            console.log(row.reduce((acc, curr, i) => {
-              acc[tableKeys[i]] = curr
-              return acc
-            }, {}))
             return row.reduce((acc, curr, i) => {
               acc[tableKeys[i]] = curr
               return acc
@@ -169,22 +198,6 @@
           :items-per-page="-1"
           style="flex: 1; overflow-y: auto;"
         />
-        <!-- <table>
-          <thead>
-            <tr>
-              <th v-for="column in tableKeys">
-                {{ column }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="rowData in tableData">
-              <td v-for="value in rowData">
-                {{ value }}
-              </td>
-            </tr>
-          </tbody>
-        </table> -->
       </div>
     </div>
   </Suspense>
