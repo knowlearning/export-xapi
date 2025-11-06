@@ -5,7 +5,7 @@
   import initStatementsDatabase from './init-statements-database.js'
   import downloadCSV from './download-csv.js'
 
-  const embedPathItem = ref('db9a2670-8d78-11f0-a6e9-f58b30f7d3cd')
+  const embedPathItem = ref('f8d047f0-8d8d-11f0-ba51-f9f87536173e')
   const shardRows = ref(null)
   const shardDBs = reactive({})
   const SQLite = await initSQLite()
@@ -100,7 +100,7 @@
 
   function download() {
     downloadCSV(
-      `${embedPathItem.value}-${new Date().toString()}.csv`,
+      `${embedPathItem.value}-${new Date().toISOString()}.csv`,
       tableKeys.value,
       tableData.value
     )
