@@ -117,6 +117,7 @@
           placeholder="embed path filter"
           density="compact"
           hide-details
+          @keypress.enter="loadStatements(embedPathItem)"
         >
           <template #append-inner>
             <v-btn
@@ -146,6 +147,8 @@
             }, {})
           })"
           fixed-header
+          virtual-scroll
+          hide-default-footer
           style="flex: 1; overflow-y: auto;"
         />
         <!-- <table>
