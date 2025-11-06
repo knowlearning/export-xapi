@@ -101,18 +101,54 @@
 
 <template>
   <Suspense>
-    <div>
-      survey sequence id:
-      <input
-        v-model="embedPathItem"
-        placeholder="embed path filter"
-      />
-      <button @click="loadStatements(embedPathItem)">load</button>
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+      "
+    >
+      <div>
+        <v-text-field
+          v-model="embedPathItem"
+          label="Survey Sequence Id"
+          placeholder="embed path filter"
+          density="compact"
+          hide-details
+        >
+          <template #append-inner>
+            <v-btn
+              color="primary"
+              @click="loadStatements(embedPathItem)"
+            >
+              load
+            </v-btn>
+          </template>
+        </v-text-field>
+      </div>
       <div
         class="table-container"
         v-if="shardRows"
+        style="display: flex; flex-direction: column; height: 100%;"
       >
-        <table>
+        <v-data-table
+          :headers="tableKeys.map(key => ({ key, title: key }))"
+          :items="tableData.map((row, i) => {
+            console.log(row.reduce((acc, curr, i) => {
+              acc[tableKeys[i]] = curr
+              return acc
+            }, {}))
+            return row.reduce((acc, curr, i) => {
+              acc[tableKeys[i]] = curr
+              return acc
+            }, {})
+          })"
+          fixed-header
+          style="flex: 1; overflow-y: auto;"
+        />
+        <!-- <table>
           <thead>
             <tr>
               <th v-for="column in tableKeys">
@@ -127,7 +163,7 @@
               </td>
             </tr>
           </tbody>
-        </table>
+        </table> -->
       </div>
     </div>
   </Suspense>
@@ -146,9 +182,8 @@
 
   /* Wrapper for scroll and layout */
   .table-container {
-    width: 100%;
-    overflow-x: auto;
-    box-sizing: border-box;
+    flex-grow: 1;
+    overflow: hidden;
   }
 
   /* Base table */
