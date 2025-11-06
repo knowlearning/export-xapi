@@ -1,13 +1,12 @@
 <script setup>
   import { ref, reactive } from 'vue'
   import initSQLite from './sqlite.js'
-  import * as columnData from './column-data.js'
+  import constructColumnData from './construct-column-data.js'
   import initStatementsDatabase from './init-statements-database.js'
 
-  const embedPathItem = ref(columnData.questionaire.context)
+  const embedPathItem = ref('db9a2670-8d78-11f0-a6e9-f58b30f7d3cd')
   const shardRows = ref(null)
   const shardDBs = reactive({})
-  const tableDescription = reactive(columnData.questionaire)
   const SQLite = await initSQLite()
   const tableKeys = ref(null)
   const tableData = ref(null)
@@ -15,6 +14,7 @@
   async function loadStatements(epItem) {
     shardRows.value = null
 
+    const tableDescription = await constructColumnData(epItem)
     const db = await initStatementsDatabase(epItem)
 
     const stmt = db.prepare(tableDescription.shardQuery)
@@ -115,9 +115,8 @@
         <table>
           <thead>
             <tr>
-              <th v-for="_, key in shardRows[0]">{{ key }}</th>
-              <th v-for="column, index in tableDescription.columns">
-                {{ column.name }}
+              <th v-for="column in tableKeys">
+                {{ column }}
               </th>
             </tr>
           </thead>
