@@ -12,6 +12,7 @@
     "@fortawesome/fontawesome-free": "^7.1.0",
     "@knowlearning/agents": "^0.9.182",
     "@vitejs/plugin-basic-ssl": "^2.0.0",
+    "papaparse": "^5.5.3",
     "sql.js": "^1.13.0",
     "vue": "^3.5.17",
     "vuetify": "^3.10.9"

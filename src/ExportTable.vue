@@ -3,6 +3,7 @@
   import initSQLite from './sqlite.js'
   import constructColumnData from './construct-column-data.js'
   import initStatementsDatabase from './init-statements-database.js'
+  import downloadCSV from './download-csv.js'
 
   const embedPathItem = ref('db9a2670-8d78-11f0-a6e9-f58b30f7d3cd')
   const shardRows = ref(null)
@@ -97,6 +98,14 @@
     }
   }
 
+  function download() {
+    downloadCSV(
+      `${embedPathItem.value}-${new Date().toString()}.csv`,
+      tableKeys.value,
+      tableData.value
+    )
+  }
+
 </script>
 
 <template>
@@ -125,6 +134,14 @@
               @click="loadStatements(embedPathItem)"
             >
               load
+            </v-btn>
+          </template>
+          <template #prepend-inner>
+            <v-btn
+              v-if="shardRows"
+              @click="download"
+            >
+              download
             </v-btn>
           </template>
         </v-text-field>
