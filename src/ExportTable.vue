@@ -1,7 +1,6 @@
 <script setup>
   import { ref, reactive } from 'vue'
   import initSQLite from './sqlite.js'
-  import QueryCell from './QueryCell.vue'
   import * as columnData from './column-data.js'
   import initStatementsDatabase from './init-statements-database.js'
 
@@ -10,6 +9,8 @@
   const shardDBs = reactive({})
   const tableDescription = reactive(columnData.questionaire)
   const SQLite = await initSQLite()
+  const tableKeys = ref(null)
+  const tableData = ref(null)
 
   async function loadStatements(epItem) {
     shardRows.value = null
@@ -26,6 +27,12 @@
     // CONSTRUCT SHARD SPECIFIC DATABASES
     // clear old
     for (const k of Object.keys(shardDBs)) delete shardDBs[k]
+
+    const primaryKeys = Object.keys(shardRows.value[0])
+    const otherKeys = tableDescription.columns.map(c => c.name)
+
+    tableKeys.value = [ ...primaryKeys, ...otherKeys ]
+    tableData.value = []
 
     // build each shardDB
     for (const keyColumns of shardRows.value) {
@@ -68,6 +75,25 @@
       insert.free()
 
       shardDBs[JSON.stringify(keyColumns)] = shardDb
+
+      // construct table data
+      const shardRow = [...Object.values(keyColumns)]
+      for (const column of tableDescription.columns) {
+        const statement = shardDb.prepare(column.query)
+        const values = []
+        try {
+          while (statement.step()) {
+            values.push(statement.getAsObject())
+          }
+        }
+        finally {
+          statement.free()
+        }
+
+        //  TODO: should probably be an error value for the cell if does not conform to this output
+        shardRow.push(values?.[0]?.value)
+      }
+      tableData.value.push(shardRow)
     }
   }
 
@@ -76,6 +102,7 @@
 <template>
   <Suspense>
     <div>
+      survey sequence id:
       <input
         v-model="embedPathItem"
         placeholder="embed path filter"
@@ -95,15 +122,9 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="d in shardRows">
-              <td v-for="value in d">{{ value }}</td>
-              <td v-for="column in tableDescription.columns">
-                <QueryCell
-                  :database="shardDBs[JSON.stringify(d)]"
-                  :rowKey="d"
-                  :column="column"
-                  :key="column.query"
-                />
+            <tr v-for="rowData in tableData">
+              <td v-for="value in rowData">
+                {{ value }}
               </td>
             </tr>
           </tbody>
