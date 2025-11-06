@@ -166,6 +166,7 @@
           fixed-header
           virtual-scroll
           hide-default-footer
+          :items-per-page="-1"
           style="flex: 1; overflow-y: auto;"
         />
         <!-- <table>
