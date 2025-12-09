@@ -5,14 +5,17 @@ export default async function constructColumnData(context) {
 
   return {
     context,
+    // "shardQuery" is really the "keyQuery" it gets all the defining id/key colums for each row in the data export
     shardQuery: `SELECT DISTINCT
     authority AS user,
     json_extract(embed_path, '$[0]') AS assignment
   FROM statements
   WHERE json_array_length(embed_path) = 3`,
+    // "shardQuery2" is really the query to gather rows used to fill out other columns for each row from "keyQuery"
     shardQuery2: `SELECT *
   FROM statements
   WHERE authority = $user AND json_extract(embed_path, '$[0]') = $assignment`,
+    // These are the definitions for the queries over each row's result for "shardQuery2" that defines a column value for each row in "keyQuery"
     columns: [
       ...names.map(name => ({
         name,
