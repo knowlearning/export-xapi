@@ -8,6 +8,7 @@
   const embedPathItem = ref('f8d047f0-8d8d-11f0-ba51-f9f87536173e')
   const shardRows = ref(null)
   const shardDBs = reactive({})
+  const environment = await Agent.environment()
   const fullDb = ref(null)
   const SQLite = await initSQLite()
   const tableKeys = ref(null)
@@ -133,11 +134,23 @@
     )
   }
 
+  function login() {
+    Agent.login()
+  }
+
+  function logout() {
+    Agent.logout()
+  }
+
 </script>
 
 <template>
   <Suspense>
+    <div v-if="environment.auth.provider === 'anonymous'">
+      <v-btn @click="login">Login</v-btn>
+    </div>
     <div
+      v-else
       style="
         display: flex;
         flex-direction: column;
@@ -156,6 +169,10 @@
           @keypress.enter="loadStatements(embedPathItem)"
         >
           <template #prepend-inner>
+            <v-btn
+              @click="logout"
+              text="logout"
+            />
             <v-btn
               v-if="shardRows"
               @click="download"
