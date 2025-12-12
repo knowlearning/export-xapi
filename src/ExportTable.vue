@@ -5,7 +5,7 @@
   import initStatementsDatabase from './init-statements-database.js'
   import downloadCSV from './download-csv.js'
 
-  const embedPathItem = ref('f8d047f0-8d8d-11f0-ba51-f9f87536173e')
+  const embedPathItem = ref('b81b3af0-9af6-11f0-bb3f-f559dff26704')
   const shardRows = ref(null)
   const shardDBs = reactive({})
   const environment = await Agent.environment()

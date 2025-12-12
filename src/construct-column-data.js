@@ -1,4 +1,4 @@
-export default async function constructColumnData(context) {
+export async function constructColumnDataFirst(context) {
   const sequence = await Agent.state(context)
   const surveyPages = await Promise.all(sequence.items.map(item => Agent.state(item.id)))
   const names = surveyPages.map(s => s.formData.map(d => d.name)).flat()
@@ -40,6 +40,34 @@ export default async function constructColumnData(context) {
     AS INTEGER
   ) AS value
   FROM statements`
+      }
+    ]
+  }
+}
+
+export default function constructColumnData(context) {
+  return {
+    context,
+    shardQuery: `SELECT DISTINCT
+      authority AS student_id,
+      json_extract(embed_path, '$[0]') AS assignment,
+      stored,
+      json_extract(extensions, '$.chatbotEvent.userPrompt')  AS user_prompt,
+      json_extract(extensions, '$.chatbotEvent.botResponse') AS bot_response
+    FROM statements
+    WHERE json_array_length(embed_path) = 2
+      AND json_type(extensions, '$.chatbotEvent') IS NOT NULL;`,
+    // "shardQuery2" is really the query to gather rows used to fill out other columns for each row from "keyQuery"
+    shardQuery2: `SELECT *
+  FROM statements
+  WHERE json_extract(embed_path, '$[0]') = $assignment LIMIT 1`,
+    // These are the definitions for the queries over each row's result for "shardQuery2" that defines a column value for each row in "keyQuery"
+    columns: [
+      {
+        name: 'started',
+        query: `SELECT
+          MIN(stored) AS value
+          FROM statements`
       }
     ]
   }
