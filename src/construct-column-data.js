@@ -49,11 +49,20 @@ export default function constructColumnData(context) {
   return {
     context,
     shardQuery: `SELECT DISTINCT
-      authority AS student_id,
-      json_extract(embed_path, '$[0]') AS assignment,
-      stored,
-      json_extract(extensions, '$.chatbotEvent.userPrompt')  AS user_prompt,
-      json_extract(extensions, '$.chatbotEvent.botResponse') AS bot_response
+      authority AS 'Student ID',
+      json_extract(embed_path, '$[0]') AS 'Sequence ID',
+      json_extract(extensions, '$.chatbotEvent.sequenceOrder') AS 'Sequence Order',
+      json_extract(extensions, '$.chatbotEvent.sequenceTopic') AS 'Sequence Topic',
+      stored as 'Event Timestamp',
+      object as 'Item ID',
+      json_extract(extensions, '$.chatbotEvent.phase') AS 'Mode',
+      json_extract(extensions, '$.chatbotEvent.itemPosition') AS 'Item Position at Start',
+      json_extract(extensions, '$.chatbotEvent.interactionOrder') AS 'Order of Interaction',
+      json_extract(extensions, '$.chatbotEvent.userPrompt.text')  AS 'User Query(original)',
+      json_extract(extensions, '$.chatbotEvent.userPrompt.timestamp') AS 'User Query Timestamp',
+      json_extract(extensions, '$.chatbotEvent.botResponse.text') AS 'Chatbot Response(original)',
+      json_extract(extensions, '$.chatbotEvent.botResponse.timestamp') AS 'Chatbot Response Timestamp',
+      json_extract(extensions, '$.chatbotEvent.llmInstructions') AS 'LLM Instructions'
     FROM statements
     WHERE json_array_length(embed_path) = 2
       AND json_type(extensions, '$.chatbotEvent') IS NOT NULL;`,
