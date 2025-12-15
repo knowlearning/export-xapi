@@ -66,39 +66,7 @@ export default function constructColumnData(context) {
     FROM statements
     WHERE json_array_length(embed_path) = 2
       AND json_type(extensions, '$.chatbotEvent') IS NOT NULL;`,
-    // "shardQuery2" is really the query to gather rows used to fill out other columns for each row from "keyQuery"
-    shardQuery2: `SELECT *
-  FROM statements
-  WHERE json_extract(embed_path, '$[0]') = $assignment LIMIT 1`,
-    // These are the definitions for the queries over each row's result for "shardQuery2" that defines a column value for each row in "keyQuery"
-    columns: [
-      {
-        name: 'started',
-        query: `SELECT
-          MIN(stored) AS value
-          FROM statements`
-      }
-    ]
+    shardQuery2: null,
+    columns: []
   }
 }
-
-
-  //     {
-  //       name: 'all responses',
-  //       query: `SELECT
-  //   json_group_object(item_name, response) AS value
-  // FROM (
-  //   SELECT
-  //     json_extract(extensions, '$.item.name') AS item_name,
-  //     response
-  //   FROM statements AS s1
-  //   WHERE verb = 'answered'
-  //     AND item_name IS NOT NULL
-  //     AND stored = (
-  //       SELECT MAX(s2.stored)
-  //       FROM statements AS s2
-  //       WHERE json_extract(s2.extensions, '$.item.name') = json_extract(s1.extensions, '$.item.name')
-  //         AND s2.verb = 'answered'
-  //     )
-  // )`
-  //     },

@@ -28,6 +28,17 @@
 
     shardRows.value = rows
 
+    const useSharding = tableDescription.shardQuery2 && tableDescription.columns?.length > 0;
+
+    if (!useSharding) {
+      const firstRow = shardRows.value[0]
+      if (firstRow) {
+        tableKeys.value = Object.keys(firstRow)
+        tableData.value = shardRows.value.map(r => Object.values(r))
+      }
+      return
+    }
+
     // CONSTRUCT SHARD SPECIFIC DATABASES
     // clear old
     for (const k of Object.keys(shardDBs)) delete shardDBs[k]
