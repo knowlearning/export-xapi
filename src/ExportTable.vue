@@ -1,7 +1,7 @@
 <script setup>
   import { ref, reactive } from 'vue'
   import initSQLite from './sqlite.js'
-  import constructColumnData from './construct-column-data.js'
+  import {constructChatbotInteractions, constructSurveyColumnData, constructStudentSequenceData } from './construct-column-data.js'
   import initStatementsDatabase from './init-statements-database.js'
   import downloadCSV from './download-csv.js'
 
@@ -14,10 +14,45 @@
   const tableKeys = ref(null)
   const tableData = ref(null)
 
+  const exportTypes = [
+    {
+      topic: 'RCT Sequence',
+      items: [
+        {
+          title: 'Chatbot Interactions',
+          value: 'rct-chatbot',
+          handler: constructChatbotInteractions
+        },
+        {
+          title: 'Student Sequence Data',
+          value: 'student-sequence-data',
+          handler: constructStudentSequenceData,
+        }
+      ]
+    },
+    {
+      topic: 'Survey Data',
+      items: [
+        {
+          title: 'Survey Responses',
+          value: 'survey-responses',
+          handler: constructSurveyColumnData
+        }
+      ]
+    }
+  ]
+
+  const selectedExportType = ref('rct-chatbot')
+
   async function loadStatements(epItem) {
     shardRows.value = null
 
-    const tableDescription = await constructColumnData(epItem)
+    // Find the selected export handler
+    const selectedHandler = exportTypes
+      .flatMap(group => group.items)
+      .find(item => item.value === selectedExportType.value)?.handler || constructChatbotInteractions
+
+    const tableDescription = await selectedHandler(epItem)
     const db = await initStatementsDatabase(epItem)
     fullDb.value = db
 
@@ -196,6 +231,31 @@
             >
               Download Raw xAPI
             </v-btn>
+            <v-menu>
+              <template v-slot:activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  variant="outlined"
+                  density="compact"
+                  style="margin-left: 12px;"
+                >
+                  {{ exportTypes.flatMap(g => g.items).find(i => i.value === selectedExportType)?.title || 'Select Export Type' }} ▼
+                </v-btn>
+              </template>
+              <v-list>
+                <template v-for="group in exportTypes" :key="group.topic">
+                  <v-list-subheader>{{ group.topic }}</v-list-subheader>
+                  <v-list-item
+                    v-for="item in group.items"
+                    :key="item.value"
+                    :value="item.value"
+                    @click="selectedExportType = item.value"
+                  >
+                    <v-list-item-title>{{ item.title }}</v-list-item-title>
+                  </v-list-item>
+                </template>
+              </v-list>
+            </v-menu>
           </template>
           <template #append-inner>
             <v-btn
