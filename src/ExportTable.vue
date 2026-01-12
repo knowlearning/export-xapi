@@ -140,8 +140,19 @@
           statement.free()
         }
 
-        //  TODO: should probably be an error value for the cell if does not conform to this output
-        shardRow.push(values?.[0]?.value)
+        let cellValue = values?.[0]?.value
+
+        // Apply transform function if it exists
+        if (column.transform && cellValue != null) {
+          try {
+            cellValue = column.transform(cellValue, keyColumns)
+          } catch (error) {
+            console.error(`Transform failed for column "${column.name}":`, error)
+            cellValue = `[Error: ${error.message}]`
+          }
+        }
+
+        shardRow.push(cellValue)
       }
       tableData.value.push(shardRow)
     }

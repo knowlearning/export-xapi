@@ -1,3 +1,5 @@
+import { getCorrectAnswerText, getStudentAnswerText } from "./rct-utils";
+
 export async function constructSurveyColumnData(context) {
   const sequence = await Agent.state(context)
   const surveyPages = await Promise.all(sequence.items.map(item => Agent.state(item.id)))
@@ -64,11 +66,16 @@ export async function constructStudentSequenceData(context) {
     })
   );
 
-  console.log('problems', problems);
+  const correctAnswers = problems.map(p => getCorrectAnswerText(p));
   const problemKindCase = problems.length > 0 ? `CASE object
     ${problems.map(p => `WHEN '${p.id}' THEN '${p.kind}'`).join('\n')}
     ELSE 'unknown'
   END` : `'unknown'`;
+
+  const correctAnswerCase = problems.length > 0 ? `CASE object
+    ${problems.map((p, index) => `WHEN '${p.id}' THEN '${correctAnswers[index].replace(/'/g, "''")}'`).join('\n')}
+    ELSE NULL
+  END` : 'NULL';
 
   const sequenceName = state.name || 'Unknown Sequence';
   const sequenceDescription = state.description || '';
@@ -77,15 +84,15 @@ export async function constructStudentSequenceData(context) {
     context,
     shardQuery: `SELECT DISTINCT
       authority AS student_id,
-      '${context}' AS assignment_id,
-      json_extract(embed_path, '$[0]') AS sequence_id,
+      '${context}' AS sequence_id,
+      json_extract(embed_path, '$[0]') AS assignment_id,
       object AS item_id
     FROM statements
     WHERE json_array_length(embed_path) = 2
       AND object IN (${problemIds.map(id => `'${id}'`).join(', ')});`,
     shardQuery2: `SELECT * FROM statements
       WHERE authority = $student_id
-        AND json_extract(embed_path, '$[0]') = $sequence_id
+        AND json_extract(embed_path, '$[0]') = $assignment_id
         AND object = $item_id`,
     columns: [
       {
@@ -122,19 +129,31 @@ export async function constructStudentSequenceData(context) {
       },
       {
         name: 'Answer 1',
-        query: `SELECT json_extract(extensions, '$.sequenceEvent.answer') AS value FROM statements WHERE verb = 'submitted' ORDER BY stored ASC LIMIT 1`
+        query: `SELECT json_extract(extensions, '$.runState') AS value FROM statements WHERE verb = 'submitted' ORDER BY stored ASC LIMIT 1`,
+        transform: (value, rowContext) => {
+          const problem = problems.find(p => p.id === rowContext.item_id);
+          return getStudentAnswerText(value, problem);
+        }
       },
       {
         name: 'Answer 2',
-        query: `SELECT json_extract(extensions, '$.sequenceEvent.answer') AS value FROM statements WHERE verb = 'submitted' ORDER BY stored ASC LIMIT 1 OFFSET 1`
+        query: `SELECT json_extract(extensions, '$.runState') AS value FROM statements WHERE verb = 'submitted' ORDER BY stored ASC LIMIT 1 OFFSET 1`,
+        transform: (value, rowContext) => {
+          const problem = problems.find(p => p.id === rowContext.item_id);
+          return getStudentAnswerText(value, problem);
+        }
       },
       {
         name: 'Final answer',
-        query: `SELECT json_extract(extensions, '$.sequenceEvent.answer') AS value FROM statements WHERE verb = 'submitted' ORDER BY stored DESC LIMIT 1`
+        query: `SELECT json_extract(extensions, '$.runState') AS value FROM statements WHERE verb = 'submitted' ORDER BY stored DESC LIMIT 1`,
+        transform: (value, rowContext) => {
+          const problem = problems.find(p => p.id === rowContext.item_id);
+          return getStudentAnswerText(value, problem);
+        }
       },
       {
         name: 'Correct answer',
-        query: `SELECT json_extract(extensions, '$.sequenceEvent.correctAnswer') AS value FROM statements LIMIT 1`
+        query: `SELECT ${correctAnswerCase} AS value FROM statements LIMIT 1`
       },
       {
         name: 'Attempts',
@@ -150,11 +169,12 @@ export async function constructStudentSequenceData(context) {
       },
       {
         name: 'Correct',
-        query: `SELECT CASE WHEN (
-          SELECT json_extract(extensions, '$.sequenceEvent.answer') FROM statements WHERE verb = 'submitted' ORDER BY stored DESC LIMIT 1
-        ) = (
-          SELECT json_extract(extensions, '$.sequenceEvent.correctAnswer') FROM statements LIMIT 1
-        ) THEN 1 ELSE 0 END AS value`
+        query: `SELECT
+                  COALESCE(json_extract(extensions, '$.runState.isCorrect'), 0) AS value
+                FROM statements
+                WHERE verb = 'submitted'
+                ORDER BY stored DESC
+                LIMIT 1;`
       },
       {
         name: 'Hands raised',
@@ -205,9 +225,10 @@ export async function constructChatbotInteractions(context) {
     context,
     shardQuery: `SELECT DISTINCT
       authority AS 'Student ID',
-      json_extract(embed_path, '$[0]') AS 'Sequence ID',
+      json_extract(embed_path, '$[0]') AS 'Assignment ID',
+      '${context}' AS 'Sequence ID',
       json_extract(extensions, '$.chatbotEvent.sequenceOrder') AS 'Sequence Order',
-     ' ${sequenceTopic}' AS 'Sequence Topic',
+     '${sequenceTopic}' AS 'Sequence Topic',
       stored as 'Event Timestamp',
       object as 'Item ID',
       json_extract(extensions, '$.chatbotEvent.phase') AS 'Mode',
