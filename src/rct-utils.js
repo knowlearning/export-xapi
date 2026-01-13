@@ -40,7 +40,6 @@ export function getCorrectAnswerText(problem) {
             }
             break;
         case 'word_problem':
-            console.log(problem.answerBlocks)
             const answerBlockValues = problem.answerBlocks.map(
                 block => {
                     if (block.label && block.orientation === 'label_first') {

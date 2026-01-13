@@ -49,6 +49,7 @@ export async function constructSurveyColumnData(context) {
 
 export async function constructStudentSequenceData(context) {
   const state = await Agent.state(context);
+  console.log("State fetched for context ", context, state);
   const problemIds = state.problemIds || [];
 
   const itemPositionCase = problemIds.length > 0
@@ -124,7 +125,7 @@ export async function constructStudentSequenceData(context) {
         query: `SELECT stored AS value FROM statements WHERE verb = 'initialized' ORDER BY stored ASC LIMIT 1`
       },
       {
-        name: 'Misconception',
+        name: 'Misconceptions',
         query: `SELECT json_extract(extensions, '$.sequenceEvent.misconception') AS value FROM statements WHERE verb = 'submitted' ORDER BY stored DESC LIMIT 1`
       },
       {
@@ -178,11 +179,35 @@ export async function constructStudentSequenceData(context) {
       },
       {
         name: 'Hands raised',
-        query: `SELECT COUNT(*) AS value FROM statements WHERE json_extract(extensions, '$.chatbotEvent.type') = 'helpRequested'`
+        query: `SELECT COUNT(*) AS value FROM statements WHERE verb = 'hand_raised'`
       },
       {
         name: 'Time spent on item (exercise) in seconds',
-        query: `SELECT CAST((julianday(MAX(CASE WHEN verb='submitted' THEN stored END)) - julianday(MIN(CASE WHEN verb='initialized' THEN stored END))) * 86400 AS INTEGER) AS value FROM statements`
+        query: `
+            WITH event_groups AS (
+              SELECT
+                verb,
+                stored,
+                SUM(CASE WHEN verb = 'initialized' THEN 1 ELSE 0 END)
+                OVER (ORDER BY stored ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS group_id
+              FROM statements
+              WHERE verb IN ('initialized', 'submitted', 'skipped')
+            ),
+            time_pairs AS (
+              SELECT
+                group_id,
+                MIN(CASE WHEN verb = 'initialized' THEN stored END) AS start_time,
+                MAX(CASE WHEN verb IN ('submitted', 'skipped') THEN stored END) AS end_time
+              FROM event_groups
+              GROUP BY group_id
+            )
+            SELECT
+              CAST(SUM(
+                (julianday(end_time) - julianday(start_time)) * 86400
+              ) AS INTEGER) AS value
+            FROM time_pairs
+            WHERE start_time IS NOT NULL AND end_time IS NOT NULL
+          `
       },
       {
         name: 'Time spent on item (review) in seconds',

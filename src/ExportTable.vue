@@ -19,15 +19,15 @@
       topic: 'RCT Sequence',
       items: [
         {
+          title: 'Student Sequence Data',
+          value: 'rct-student-sequence-data',
+          handler: constructStudentSequenceData,
+        },
+        {
           title: 'Chatbot Interactions',
           value: 'rct-chatbot',
           handler: constructChatbotInteractions
         },
-        {
-          title: 'Student Sequence Data',
-          value: 'student-sequence-data',
-          handler: constructStudentSequenceData,
-        }
       ]
     },
     {
@@ -42,7 +42,7 @@
     }
   ]
 
-  const selectedExportType = ref('rct-chatbot')
+  const selectedExportType = ref('rct-student-sequence-data')
 
   async function loadStatements(epItem) {
     shardRows.value = null
