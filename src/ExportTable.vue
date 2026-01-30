@@ -1,11 +1,11 @@
 <script setup>
   import { ref, reactive } from 'vue'
   import initSQLite from './sqlite.js'
-  import constructColumnData from './construct-column-data.js'
+  import {constructChatbotInteractions, constructSurveyColumnData, constructStudentSequenceData } from './construct-column-data.js'
   import initStatementsDatabase from './init-statements-database.js'
   import downloadCSV from './download-csv.js'
 
-  const embedPathItem = ref('f8d047f0-8d8d-11f0-ba51-f9f87536173e')
+  const embedPathItem = ref('b81b3af0-9af6-11f0-bb3f-f559dff26704')
   const shardRows = ref(null)
   const shardDBs = reactive({})
   const environment = await Agent.environment()
@@ -14,10 +14,45 @@
   const tableKeys = ref(null)
   const tableData = ref(null)
 
+  const exportTypes = [
+    {
+      topic: 'RCT Sequence',
+      items: [
+        {
+          title: 'Student Sequence Data',
+          value: 'rct-student-sequence-data',
+          handler: constructStudentSequenceData,
+        },
+        {
+          title: 'Chatbot Interactions',
+          value: 'rct-chatbot',
+          handler: constructChatbotInteractions
+        },
+      ]
+    },
+    {
+      topic: 'Survey Data',
+      items: [
+        {
+          title: 'Survey Responses',
+          value: 'survey-responses',
+          handler: constructSurveyColumnData
+        }
+      ]
+    }
+  ]
+
+  const selectedExportType = ref('rct-student-sequence-data')
+
   async function loadStatements(epItem) {
     shardRows.value = null
 
-    const tableDescription = await constructColumnData(epItem)
+    // Find the selected export handler
+    const selectedHandler = exportTypes
+      .flatMap(group => group.items)
+      .find(item => item.value === selectedExportType.value)?.handler || constructChatbotInteractions
+
+    const tableDescription = await selectedHandler(epItem)
     const db = await initStatementsDatabase(epItem)
     fullDb.value = db
 
@@ -27,6 +62,17 @@
     stmt.free()
 
     shardRows.value = rows
+
+    const useSharding = tableDescription.shardQuery2 && tableDescription.columns?.length > 0;
+
+    if (!useSharding) {
+      const firstRow = shardRows.value[0]
+      if (firstRow) {
+        tableKeys.value = Object.keys(firstRow)
+        tableData.value = shardRows.value.map(r => Object.values(r))
+      }
+      return
+    }
 
     // CONSTRUCT SHARD SPECIFIC DATABASES
     // clear old
@@ -94,8 +140,19 @@
           statement.free()
         }
 
-        //  TODO: should probably be an error value for the cell if does not conform to this output
-        shardRow.push(values?.[0]?.value)
+        let cellValue = values?.[0]?.value
+
+        // Apply transform function if it exists
+        if (column.transform && cellValue != null) {
+          try {
+            cellValue = column.transform(cellValue, keyColumns)
+          } catch (error) {
+            console.error(`Transform failed for column "${column.name}":`, error)
+            cellValue = `[Error: ${error.message}]`
+          }
+        }
+
+        shardRow.push(cellValue)
       }
       tableData.value.push(shardRow)
     }
@@ -185,6 +242,31 @@
             >
               Download Raw xAPI
             </v-btn>
+            <v-menu>
+              <template v-slot:activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  variant="outlined"
+                  density="compact"
+                  style="margin-left: 12px;"
+                >
+                  {{ exportTypes.flatMap(g => g.items).find(i => i.value === selectedExportType)?.title || 'Select Export Type' }} ▼
+                </v-btn>
+              </template>
+              <v-list>
+                <template v-for="group in exportTypes" :key="group.topic">
+                  <v-list-subheader>{{ group.topic }}</v-list-subheader>
+                  <v-list-item
+                    v-for="item in group.items"
+                    :key="item.value"
+                    :value="item.value"
+                    @click="selectedExportType = item.value"
+                  >
+                    <v-list-item-title>{{ item.title }}</v-list-item-title>
+                  </v-list-item>
+                </template>
+              </v-list>
+            </v-menu>
           </template>
           <template #append-inner>
             <v-btn
