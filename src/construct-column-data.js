@@ -145,6 +145,14 @@ export async function constructStudentSequenceData(context) {
         }
       },
       {
+        name: 'Answer 3',
+        query: `SELECT json_extract(extensions, '$.runState') AS value FROM statements WHERE verb = 'submitted' ORDER BY stored ASC LIMIT 1 OFFSET 2`,
+        transform: (value, rowContext) => {
+          const problem = problems.find(p => p.id === rowContext.item_id);
+          return getStudentAnswerText(value, problem);
+        }
+      },
+      {
         name: 'Final answer',
         query: `SELECT json_extract(extensions, '$.runState') AS value FROM statements WHERE verb = 'submitted' ORDER BY stored DESC LIMIT 1`,
         transform: (value, rowContext) => {
