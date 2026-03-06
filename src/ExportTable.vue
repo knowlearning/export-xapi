@@ -48,6 +48,8 @@
   const selectedExportType = ref('rct-student-sequence-data')
 
   async function loadStatements(epItem) {
+    epItem = epItem?.trim()
+    embedPathItem.value = epItem
     loading.value = true
     loadError.value = null
     shardRows.value = null
