@@ -8,7 +8,7 @@ export default function downloadCsv(filename, headers, rows) {
   const csvString = Papa.unparse(data)
 
   // Optional: add BOM for Excel compatibility
-  const blob = new Blob(["\uFEFF" + csvString], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob(["\uFEFF" + csvString], { type: 'application/octet-stream' })
   const url = URL.createObjectURL(blob)
 
   const link = document.createElement('a')

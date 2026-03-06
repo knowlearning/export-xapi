@@ -12,6 +12,7 @@
   const fullDb = ref(null)
   const SQLite = await initSQLite()
   const tableKeys = ref(null)
+  const tableDisplayKeys = ref(null)
   const tableData = ref(null)
 
   const exportTypes = [
@@ -69,6 +70,7 @@
       const firstRow = shardRows.value[0]
       if (firstRow) {
         tableKeys.value = Object.keys(firstRow)
+        tableDisplayKeys.value = tableKeys.value
         tableData.value = shardRows.value.map(r => Object.values(r))
       }
       return
@@ -82,6 +84,9 @@
     const otherKeys = tableDescription.columns.map(c => c.name)
 
     tableKeys.value = [ ...primaryKeys, ...otherKeys ]
+    const displayNames = tableDescription.displayNames || {}
+    const primaryDisplayKeys = primaryKeys.map(k => displayNames[k] ?? k)
+    tableDisplayKeys.value = [ ...primaryDisplayKeys, ...otherKeys ]
     tableData.value = []
 
     // build each shardDB
@@ -161,7 +166,7 @@
   function download() {
     downloadCSV(
       `${embedPathItem.value}-${new Date().toISOString()}.csv`,
-      tableKeys.value,
+      tableDisplayKeys.value,
       tableData.value
     )
   }
@@ -284,7 +289,7 @@
         style="display: flex; flex-direction: column; height: 100%;"
       >
         <v-data-table
-          :headers="tableKeys.map(key => ({ key, title: key }))"
+          :headers="tableKeys.map((key, i) => ({ key, title: tableDisplayKeys[i] }))"
           :items="tableData.map((row, i) => {
             return row.reduce((acc, curr, i) => {
               acc[tableKeys[i]] = curr

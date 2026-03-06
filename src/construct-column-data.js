@@ -7,6 +7,7 @@ export async function constructSurveyColumnData(context) {
 
   return {
     context,
+    displayNames: { user: 'user ID', assignment: 'assignment ID', completed: 'submission timestamp' },
     // "shardQuery" is really the "keyQuery" it gets all the defining id/key colums for each row in the data export
     shardQuery: `SELECT DISTINCT
     authority AS user,
@@ -28,7 +29,11 @@ export async function constructSurveyColumnData(context) {
   ORDER BY stored DESC LIMIT 1`
       })),
       {
-        name: 'completed',
+        name: 'started',
+        query: `SELECT MIN(stored) AS value FROM statements`
+      },
+      {
+        name: 'submission timestamp',
         query: `SELECT stored AS value
   FROM statements
   WHERE verb = 'initialized'
@@ -83,6 +88,7 @@ export async function constructStudentSequenceData(context) {
 
   return {
     context,
+    displayNames: { student_id: 'user ID', sequence_id: 'sequence ID', assignment_id: 'assignment ID', item_id: 'item ID' },
     shardQuery: `SELECT DISTINCT
       authority AS student_id,
       '${context}' AS sequence_id,
