@@ -7,6 +7,8 @@
 
   const embedPathItem = ref('b81b3af0-9af6-11f0-bb3f-f559dff26704')
   const shardRows = ref(null)
+  const loading = ref(false)
+  const loadError = ref(null)
   const shardDBs = reactive({})
   const environment = await Agent.environment()
   const fullDb = ref(null)
@@ -46,7 +48,10 @@
   const selectedExportType = ref('rct-student-sequence-data')
 
   async function loadStatements(epItem) {
+    loading.value = true
+    loadError.value = null
     shardRows.value = null
+    try {
 
     // Find the selected export handler
     const selectedHandler = exportTypes
@@ -160,6 +165,12 @@
         shardRow.push(cellValue)
       }
       tableData.value.push(shardRow)
+    }
+
+    } catch (err) {
+      loadError.value = err?.message || 'Failed to load data'
+    } finally {
+      loading.value = false
     }
   }
 
@@ -283,9 +294,25 @@
           </template>
         </v-text-field>
       </div>
+      <!-- Loading state -->
+      <div v-if="loading" style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; gap:16px;">
+        <v-progress-circular indeterminate color="primary" size="64" />
+        <span style="color: var(--table-muted); font-size: 1rem;">Loading data...</span>
+      </div>
+
+      <!-- Error state -->
+      <v-alert
+        v-else-if="loadError"
+        type="error"
+        variant="tonal"
+        style="margin: 16px;"
+        :text="loadError"
+      />
+
+      <!-- Table state -->
       <div
+        v-else-if="shardRows"
         class="table-container"
-        v-if="shardRows"
         style="display: flex; flex-direction: column; height: 100%;"
       >
         <v-data-table
