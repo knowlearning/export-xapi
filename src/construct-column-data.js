@@ -28,6 +28,10 @@ export async function constructSurveyColumnData(context) {
   ORDER BY stored DESC LIMIT 1`
       })),
       {
+        name: 'started',
+        query: `SELECT MIN(stored) AS value FROM statements`
+      },
+      {
         name: 'completed',
         query: `SELECT stored AS value
   FROM statements
