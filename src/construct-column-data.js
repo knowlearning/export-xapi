@@ -270,9 +270,9 @@ export async function constructChatbotInteractions(context) {
         PARTITION BY authority, json_extract(embed_path, '$[0]')
         ORDER BY json_extract(extensions, '$.chatbotEvent.userPrompt.timestamp')
       ) - 1 AS 'Order of Interaction',
-      json_extract(extensions, '$.chatbotEvent.userPrompt.text')  AS 'User Query(original)',
-      json_extract(extensions, '$.chatbotEvent.userPrompt.timestamp') AS 'User Query Timestamp',
-      json_extract(extensions, '$.chatbotEvent.botResponse.text') AS 'Chatbot Response(original)',
+      json_extract(extensions, '$.chatbotEvent.userPrompt.text')  AS 'Student Query',
+      json_extract(extensions, '$.chatbotEvent.userPrompt.timestamp') AS 'Student Query Timestamp',
+      json_extract(extensions, '$.chatbotEvent.botResponse.text') AS 'Chatbot Response',
       json_extract(extensions, '$.chatbotEvent.botResponse.timestamp') AS 'Chatbot Response Timestamp',
       json_extract(extensions, '$.chatbotEvent.llmInstructions') AS 'LLM Instructions'
     FROM statements
