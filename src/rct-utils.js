@@ -102,7 +102,18 @@ export function getStudentAnswerText(runState, problem) {
 
         case 'word_problem':
             if (state.answerBlockValues) {
-                return Object.values(state.answerBlockValues).join('; ');
+                const answerBlockValues = problem.answerBlocks.map(
+                    (block, index) => {
+                        if (block.label && block.orientation === 'label_first') {
+                            return `${block.label} ${state.answerBlockValues[index] || 'No Answer'}`;
+                        } else if (block.label && block.orientation === 'value_first') {
+                            return `${state.answerBlockValues[index] || 'No Answer'} ${block.label}`;
+                        } else {
+                            return state.answerBlockValues[index] || 'No Answer';
+                        }
+                    }
+                );
+                return answerBlockValues.join('; ');
             }
             break;
 
