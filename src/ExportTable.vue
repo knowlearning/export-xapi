@@ -1,9 +1,14 @@
 <script setup>
   import { ref, reactive } from 'vue'
   import initSQLite from './sqlite.js'
-  import {constructChatbotInteractions, constructSurveyColumnData, constructStudentSequenceData } from './construct-column-data.js'
   import initStatementsDatabase from './init-statements-database.js'
   import downloadCSV from './download-csv.js'
+
+  import surveySequenceExport from './exports/survey-sequence.js'
+  import {
+    constructChatbotInteractions,
+    constructStudentSequenceData
+  } from './construct-column-data.js'
 
   const embedPathItem = ref('b81b3af0-9af6-11f0-bb3f-f559dff26704')
   const shardRows = ref(null)
@@ -39,7 +44,17 @@
         {
           title: 'Survey Responses',
           value: 'survey-responses',
-          handler: constructSurveyColumnData
+          handler: surveySequenceExport
+        }
+      ]
+    },
+    {
+      topic: 'Study Info',
+      items: [
+        {
+          title: 'Teacher + Student Info',
+          value: 'teacher-student-info',
+          handler: () => {}
         }
       ]
     }
