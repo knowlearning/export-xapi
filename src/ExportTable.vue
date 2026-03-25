@@ -5,10 +5,8 @@
   import downloadCSV from './download-csv.js'
 
   import surveySequenceExport from './exports/survey-sequence.js'
-  import {
-    constructChatbotInteractions,
-    constructStudentSequenceData
-  } from './construct-column-data.js'
+  import rctChatbotExport from './exports/rct-chatbot.js'
+  import rctSequenceExport from './exports/rct-sequence.js'
 
   const embedPathItem = ref('b81b3af0-9af6-11f0-bb3f-f559dff26704')
   const shardRows = ref(null)
@@ -29,12 +27,12 @@
         {
           title: 'Student Sequence Data',
           value: 'rct-student-sequence-data',
-          handler: constructStudentSequenceData,
+          handler: rctSequenceExport,
         },
         {
           title: 'Chatbot Interactions',
           value: 'rct-chatbot',
-          handler: constructChatbotInteractions
+          handler: rctChatbotExport
         },
       ]
     },
@@ -73,7 +71,7 @@
     // Find the selected export handler
     const selectedHandler = exportTypes
       .flatMap(group => group.items)
-      .find(item => item.value === selectedExportType.value)?.handler || constructChatbotInteractions
+      .find(item => item.value === selectedExportType.value)?.handler
 
     const tableDescription = await selectedHandler(epItem)
     const db = await initStatementsDatabase(epItem)
