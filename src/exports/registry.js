@@ -2,12 +2,14 @@ import rctSequenceExport from './rct-sequence.js'
 import rctChatbotExport from './rct-chatbot.js'
 import surveySequenceExport from './survey-sequence.js'
 import sequenceSummaryExport from './sequence-summary.js'
+import studentTeacherClassIdsExport from './student-teacher-class-ids.js'
 
 export const exportDefinitions = [
   rctSequenceExport,
   rctChatbotExport,
   surveySequenceExport,
-  sequenceSummaryExport
+  sequenceSummaryExport,
+  studentTeacherClassIdsExport
 ]
 
 export function getExportDefinition(exportId) {

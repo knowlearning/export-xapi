@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import initSqlJs from 'sql.js'
 
 import { executeExport, normalizeParams } from '../../src/exports/engine.js'
+import { getExportDefinition } from '../../src/exports/registry.js'
 import { loadXapiSqliteDataset } from '../../src/sources/xapi-sqlite.js'
 
 let sqlitePromise
@@ -83,6 +84,83 @@ test('executeExport normalizes direct-row exports', async () => {
     }
   ])
   assert.equal(execution.result.meta.rowCount, 1)
+})
+
+test('student-teacher-class-ids export is registered and requires domain', () => {
+  const definition = getExportDefinition('student-teacher-class-ids')
+
+  assert.ok(definition)
+  assert.equal(definition.sourceType, 'direct')
+  assert.throws(
+    () => normalizeParams(definition.parameterSchema, {}),
+    /Domain is required/
+  )
+})
+
+test('student-teacher-class-ids export passes query name, args, and domain through to Agent.query', async () => {
+  const definition = getExportDefinition('student-teacher-class-ids')
+  const calls = []
+
+  const execution = await executeExport(definition, {
+    rawParams: {
+      domain: 'district.example.test'
+    },
+    environment: {},
+    agent: {
+      async query(name, args, domain) {
+        calls.push({ name, args, domain })
+
+        return [
+          {
+            student_id: 'student-1',
+            teacher_id: 'teacher-1',
+            class_id: 'class-1'
+          }
+        ]
+      }
+    }
+  })
+
+  assert.deepEqual(calls, [
+    {
+      name: 'student-teacher-class-ids',
+      args: [],
+      domain: 'district.example.test'
+    }
+  ])
+  assert.deepEqual(execution.result.columns, [
+    { key: 'student_id', label: 'student_id' },
+    { key: 'teacher_id', label: 'teacher_id' },
+    { key: 'class_id', label: 'class_id' }
+  ])
+  assert.deepEqual(execution.result.rows, [
+    {
+      student_id: 'student-1',
+      teacher_id: 'teacher-1',
+      class_id: 'class-1'
+    }
+  ])
+  assert.equal(execution.result.meta.rowCount, 1)
+})
+
+test('student-teacher-class-ids export handles empty query results', async () => {
+  const definition = getExportDefinition('student-teacher-class-ids')
+
+  const execution = await executeExport(definition, {
+    rawParams: {
+      domain: 'district.example.test'
+    },
+    environment: {},
+    agent: {
+      async query() {
+        return []
+      }
+    }
+  })
+
+  assert.deepEqual(execution.result.columns, [])
+  assert.deepEqual(execution.result.rows, [])
+  assert.equal(execution.result.meta.rowCount, 0)
 })
 
 test('loadXapiSqliteDataset serializes objects and booleans into SQLite', async () => {
