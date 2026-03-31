@@ -129,8 +129,14 @@
   function download() {
     if (!currentResult.value) return
 
+    const definition = selectedDefinition.value
+    const contextId = definition?.sourceType === 'xapi-sqlite'
+      ? parameterValues.value[definition.contextParameterKey || 'contextId']
+      : null
+    const filenameBase = contextId || selectedExportId.value
+
     downloadCSV(
-      `${selectedExportId.value}-${new Date().toISOString()}.csv`,
+      `${filenameBase}-${new Date().toISOString()}.csv`,
       currentResult.value.columns.map(column => column.label),
       currentResult.value.rows.map(row =>
         currentResult.value.columns.map(column => row[column.key] ?? '')
@@ -141,8 +147,14 @@
   function downloadRaw() {
     if (!currentResult.value?.rawData) return
 
+    const definition = selectedDefinition.value
+    const contextId = definition?.sourceType === 'xapi-sqlite'
+      ? parameterValues.value[definition.contextParameterKey || 'contextId']
+      : null
+    const filenameBase = contextId || selectedExportId.value
+
     downloadCSV(
-      `${selectedExportId.value}-raw-${new Date().toISOString()}.csv`,
+      `${filenameBase}-raw-${new Date().toISOString()}.csv`,
       currentResult.value.rawData.columns,
       currentResult.value.rawData.rows
     )
