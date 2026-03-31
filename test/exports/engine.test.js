@@ -2,7 +2,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import initSqlJs from 'sql.js'
 
-import { executeExport, normalizeParams } from '../../src/exports/engine.js'
+import {
+  executeExport,
+  mergeParamsForExportChange,
+  normalizeParams
+} from '../../src/exports/engine.js'
 import { getExportDefinition } from '../../src/exports/registry.js'
 import { loadXapiSqliteDataset } from '../../src/sources/xapi-sqlite.js'
 
@@ -39,6 +43,106 @@ test('normalizeParams applies defaults and validates numbers', () => {
   assert.throws(
     () => normalizeParams([{ key: 'limit', label: 'Limit', type: 'number', required: true }], { limit: 'abc' }),
     /must be a number/
+  )
+})
+
+test('mergeParamsForExportChange preserves touched shared params and drops non-shared params', () => {
+  const nextDefinition = {
+    parameterSchema: [
+      {
+        key: 'contextId',
+        label: 'Context ID',
+        type: 'text',
+        required: true,
+        defaultValue: 'ctx-default'
+      },
+      {
+        key: 'cohort',
+        label: 'Cohort',
+        type: 'text',
+        defaultValue: 'pilot'
+      }
+    ]
+  }
+
+  assert.deepEqual(
+    mergeParamsForExportChange(nextDefinition, {
+      currentParams: {
+        contextId: 'ctx-user-entered',
+        domain: 'district.example.test'
+      },
+      touchedParams: {
+        contextId: true,
+        domain: true
+      }
+    }),
+    {
+      contextId: 'ctx-user-entered',
+      cohort: 'pilot'
+    }
+  )
+})
+
+test('mergeParamsForExportChange keeps new defaults when shared params were not user-entered', () => {
+  const nextDefinition = {
+    parameterSchema: [
+      {
+        key: 'contextId',
+        label: 'Context ID',
+        type: 'text',
+        required: true,
+        defaultValue: 'ctx-default'
+      }
+    ]
+  }
+
+  assert.deepEqual(
+    mergeParamsForExportChange(nextDefinition, {
+      currentParams: {
+        contextId: ''
+      },
+      touchedParams: {
+        contextId: true
+      }
+    }),
+    {
+      contextId: 'ctx-default'
+    }
+  )
+})
+
+test('mergeParamsForExportChange applies remembered values when current params were not touched', () => {
+  const nextDefinition = {
+    parameterSchema: [
+      {
+        key: 'contextId',
+        label: 'Context ID',
+        type: 'text',
+        required: true,
+        defaultValue: 'ctx-default'
+      },
+      {
+        key: 'domain',
+        label: 'Domain',
+        type: 'text',
+        required: true
+      }
+    ]
+  }
+
+  assert.deepEqual(
+    mergeParamsForExportChange(nextDefinition, {
+      currentParams: {},
+      touchedParams: {},
+      rememberedValues: {
+        contextId: 'ctx-remembered',
+        domain: 'district.example.test'
+      }
+    }),
+    {
+      contextId: 'ctx-remembered',
+      domain: 'district.example.test'
+    }
   )
 })
 

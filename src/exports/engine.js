@@ -6,6 +6,10 @@ function defaultValueForParameter(parameter) {
   return ''
 }
 
+function hasUserEnteredValue(value) {
+  return value !== undefined && value !== null && value !== ''
+}
+
 function normalizeParameterValue(parameter, value) {
   if (value === undefined || value === null || value === '') {
     if (parameter.required && parameter.defaultValue === undefined) {
@@ -208,6 +212,30 @@ export function getInitialParams(definition) {
     accumulator[parameter.key] = defaultValueForParameter(parameter)
     return accumulator
   }, {})
+}
+
+export function mergeParamsForExportChange(definition, {
+  currentParams = {},
+  touchedParams = {},
+  rememberedValues = {}
+} = {}) {
+  const nextParams = getInitialParams(definition)
+
+  for (const parameter of definition?.parameterSchema || []) {
+    const currentValue = currentParams[parameter.key]
+    const rememberedValue = rememberedValues[parameter.key]
+
+    if (touchedParams[parameter.key] && hasUserEnteredValue(currentValue)) {
+      nextParams[parameter.key] = currentValue
+      continue
+    }
+
+    if (hasUserEnteredValue(rememberedValue)) {
+      nextParams[parameter.key] = rememberedValue
+    }
+  }
+
+  return nextParams
 }
 
 export function normalizeParams(parameterSchema = [], rawParams = {}) {
