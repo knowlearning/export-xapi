@@ -75,12 +75,23 @@ export default {
       rowScopeQuery: `SELECT * FROM statements
         WHERE authority = $student_id
           AND json_extract(embed_path, '$[0]') = $assignment_id
-          AND object = $item_id`,
+          AND (
+            object = $item_id
+            OR (
+              object = $sequence_id
+              AND verb IN ('attempt_timeout', 'review_timeout')
+            )
+          )`,
       derivedColumns: [
         {
           key: 'Sequence Order',
           label: 'Sequence Order',
-          query: `SELECT json_extract(extensions, '$.sequenceEvent.sequenceOrder') AS value FROM statements LIMIT 1`
+          query: `SELECT json_extract(extensions, '$.sequenceEvent.sequenceOrder') AS value
+            FROM statements
+            WHERE verb NOT IN ('attempt_timeout', 'review_timeout')
+              AND json_extract(extensions, '$.sequenceEvent.sequenceOrder') IS NOT NULL
+            ORDER BY stored ASC
+            LIMIT 1`
         },
         {
           key: 'Sequence Name',
@@ -220,7 +231,23 @@ export default {
         {
           key: 'Time spent on item (review) in seconds',
           label: 'Time spent on item (review) in seconds',
-          query: `SELECT CAST((julianday(MAX(CASE WHEN json_extract(extensions, '$.sequenceEvent.phase')='review' THEN stored END)) - julianday(MIN(CASE WHEN json_extract(extensions, '$.sequenceEvent.phase')='review' THEN stored END))) * 86400 AS INTEGER) AS value FROM statements`
+          query: `SELECT CAST((julianday(MAX(CASE WHEN json_extract(extensions, '$.sequenceEvent.phase')='review' THEN stored END)) - julianday(MIN(CASE WHEN json_extract(extensions, '$.sequenceEvent.phase')='review' THEN stored END))) * 86400 AS INTEGER) AS value
+            FROM statements
+            WHERE verb NOT IN ('attempt_timeout', 'review_timeout')`
+        },
+        {
+          key: 'attempt_timeout',
+          label: 'attempt_timeout',
+          query: `SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END AS value
+            FROM statements
+            WHERE verb = 'attempt_timeout'`
+        },
+        {
+          key: 'review_timeout',
+          label: 'review_timeout',
+          query: `SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END AS value
+            FROM statements
+            WHERE verb = 'review_timeout'`
         },
         {
           key: '# of messages sent (student)',

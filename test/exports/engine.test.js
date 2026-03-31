@@ -378,3 +378,186 @@ test('executeExport runs xAPI SQL plan exports with derived columns and raw data
   assert.equal(execution.result.meta.rowCount, 2)
   assert.deepEqual(execution.result.rawData.columns, ['id', 'authority', 'verb'])
 })
+
+test('student sequence data export repeats sequence timeout flags onto matching item rows', async () => {
+  const SQLite = await getSQLite()
+  const definition = getExportDefinition('rct-student-sequence-data')
+  const sequenceId = 'sequence-1'
+  const assignmentId = 'assignment-1'
+  const problemId = 'problem-1'
+
+  const execution = await executeExport(definition, {
+    rawParams: { contextId: sequenceId },
+    environment: {},
+    SQLite,
+    agent: {
+      async state(id) {
+        if (id === sequenceId) {
+          return {
+            name: 'Sequence One',
+            description: 'Concept A',
+            problemIds: [problemId]
+          }
+        }
+
+        if (id === problemId) {
+          return {
+            id: problemId,
+            kind: 'multiple_choice',
+            options: [
+              { id: 'choice-a', kind: 'text', value: 'A', isCorrect: true },
+              { id: 'choice-b', kind: 'text', value: 'B', isCorrect: false }
+            ]
+          }
+        }
+
+        throw new Error(`Unexpected state lookup: ${id}`)
+      },
+      async query(name, args) {
+        assert.equal(name, 'statements-in-context')
+        assert.deepEqual(args, [sequenceId])
+
+        return [
+          {
+            id: 'statement-1',
+            authority: 'student-1',
+            object: problemId,
+            verb: 'initialized',
+            stored: '2026-01-01T00:00:00.000Z',
+            embed_path: [assignmentId, sequenceId],
+            extensions: { sequenceEvent: { sequenceOrder: 3 } }
+          },
+          {
+            id: 'statement-2',
+            authority: 'student-1',
+            object: problemId,
+            verb: 'submitted',
+            stored: '2026-01-01T00:01:00.000Z',
+            embed_path: [assignmentId, sequenceId],
+            extensions: {
+              runState: { selectedOptionId: 'choice-a', isCorrect: true },
+              sequenceEvent: { misconception: 'none', sequenceOrder: 3 }
+            }
+          },
+          {
+            id: 'statement-3',
+            authority: 'student-1',
+            object: sequenceId,
+            verb: 'attempt_timeout',
+            stored: '2026-01-01T00:02:00.000Z',
+            embed_path: [assignmentId, sequenceId],
+            extensions: {}
+          },
+          {
+            id: 'statement-4',
+            authority: 'student-1',
+            object: sequenceId,
+            verb: 'review_timeout',
+            stored: '2026-01-01T00:03:00.000Z',
+            embed_path: [assignmentId, sequenceId],
+            extensions: {}
+          },
+          {
+            id: 'statement-5',
+            authority: 'student-2',
+            object: 'problem-2',
+            verb: 'initialized',
+            stored: '2026-01-01T00:04:00.000Z',
+            embed_path: ['assignment-2', sequenceId],
+            extensions: { sequenceEvent: { sequenceOrder: 1 } }
+          }
+        ]
+      }
+    }
+  })
+
+  assert.ok(execution.result.columns.some(column => column.key === 'attempt_timeout'))
+  assert.ok(execution.result.columns.some(column => column.key === 'review_timeout'))
+  assert.deepEqual(execution.result.rows, [
+    {
+      student_id: 'student-1',
+      sequence_id: sequenceId,
+      assignment_id: assignmentId,
+      item_id: problemId,
+      'Sequence Order': 3,
+      'Sequence Name': 'Sequence One',
+      'Sequence Concepts': 'Concept A',
+      'Item Position': 0,
+      'Item Type': 'multiple_choice',
+      'Date': '2026-01-01',
+      'Time stamp': '2026-01-01T00:00:00.000Z',
+      Misconceptions: 'none',
+      'Answer 1': 'A',
+      'Answer 2': '',
+      'Answer 3': '',
+      'Final answer': 'A',
+      'Correct answer': 'A',
+      Attempts: 1,
+      'Item skipped': 0,
+      'Item reached': 1,
+      Correct: 1,
+      'Hands raised': 0,
+      'Time spent on item (exercise) in seconds': 59,
+      'Time spent on item (review) in seconds': '',
+      attempt_timeout: 1,
+      review_timeout: 1,
+      '# of messages sent (student)': 0,
+      '# of messages sent (chatbot)': 0,
+      'Student initiated chat': 0,
+      'timestamp of first interaction with chatbot': ''
+    }
+  ])
+})
+
+test('student sequence data export emits zero timeout flags when no matching sequence timeouts exist', async () => {
+  const SQLite = await getSQLite()
+  const definition = getExportDefinition('rct-student-sequence-data')
+  const sequenceId = 'sequence-1'
+  const assignmentId = 'assignment-1'
+  const problemId = 'problem-1'
+
+  const execution = await executeExport(definition, {
+    rawParams: { contextId: sequenceId },
+    environment: {},
+    SQLite,
+    agent: {
+      async state(id) {
+        if (id === sequenceId) {
+          return {
+            name: 'Sequence One',
+            description: 'Concept A',
+            problemIds: [problemId]
+          }
+        }
+
+        if (id === problemId) {
+          return {
+            id: problemId,
+            kind: 'multiple_choice',
+            options: [
+              { id: 'choice-a', kind: 'text', value: 'A', isCorrect: true }
+            ]
+          }
+        }
+
+        throw new Error(`Unexpected state lookup: ${id}`)
+      },
+      async query() {
+        return [
+          {
+            id: 'statement-1',
+            authority: 'student-1',
+            object: problemId,
+            verb: 'initialized',
+            stored: '2026-01-01T00:00:00.000Z',
+            embed_path: [assignmentId, sequenceId],
+            extensions: { sequenceEvent: { sequenceOrder: 3 } }
+          }
+        ]
+      }
+    }
+  })
+
+  assert.equal(execution.result.rows[0].attempt_timeout, 0)
+  assert.equal(execution.result.rows[0].review_timeout, 0)
+})
