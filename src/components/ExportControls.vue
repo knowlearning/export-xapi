@@ -172,14 +172,19 @@
           <template #item="{ props: itemProps, item }">
             <v-list-item v-bind="itemProps">
               <template #append>
-                <v-btn
-                  aria-label="Remove remembered entry"
-                  density="comfortable"
-                  icon="$close"
-                  size="x-small"
-                  variant="text"
-                  @click.stop="removeRememberedOption(parameter.key, item.raw ?? item.title)"
-                />
+                <v-list-item-action end>
+                  <span
+                    class="remembered-remove"
+                    title="Remove remembered entry"
+                    @mousedown.stop.prevent
+                    @click.stop="removeRememberedOption(parameter.key, item.raw ?? item.title)"
+                  >
+                    <v-icon
+                      icon="$close"
+                      size="x-small"
+                    />
+                  </span>
+                </v-list-item-action>
               </template>
             </v-list-item>
           </template>
@@ -243,5 +248,17 @@
 
   .controls-row-downloads {
     justify-content: flex-start;
+  }
+
+  .remembered-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.72;
+  }
+
+  .remembered-remove:hover {
+    opacity: 1;
   }
 </style>
