@@ -4,7 +4,14 @@
   import downloadCSV from './download-csv.js'
   import ExportControls from './components/ExportControls.vue'
   import ExportResultTable from './components/ExportResultTable.vue'
-  import { executeExport, getInitialParams } from './exports/engine.js'
+  import { executeExport, mergeParamsForExportChange } from './exports/engine.js'
+  import {
+    loadRememberedState,
+    rememberParameterValue,
+    rememberSelectedExport,
+    removeRememberedTextValue,
+    saveRememberedState
+  } from './parameter-memory.js'
   import { exportDefinitions, getExportDefinition, getExportGroups } from './exports/registry.js'
 
   const loading = ref(false)
@@ -12,11 +19,32 @@
   const environment = await Agent.environment()
   const SQLite = await initSQLite()
   const exportGroups = getExportGroups()
-  const selectedExportId = ref(exportDefinitions[0]?.id || '')
-  const parameterValues = ref(getInitialParams(exportDefinitions[0]))
+  const rememberedState = ref(loadRememberedState())
+  const initialSelectedExportId = getExportDefinition(rememberedState.value.selectedExportId)
+    ? rememberedState.value.selectedExportId
+    : (exportDefinitions[0]?.id || '')
+  rememberedState.value = saveRememberedState(
+    rememberSelectedExport(rememberedState.value, initialSelectedExportId)
+  )
+  const selectedExportId = ref(initialSelectedExportId)
+  const initialDefinition = getExportDefinition(initialSelectedExportId) || exportDefinitions[0]
+  const parameterValues = ref(
+    mergeParamsForExportChange(initialDefinition, {
+      rememberedValues: rememberedState.value.lastValues
+    })
+  )
+  const touchedParameters = ref({})
   const currentResult = ref(null)
 
   const selectedDefinition = computed(() => getExportDefinition(selectedExportId.value))
+  const rememberedTextOptions = computed(() =>
+    (selectedDefinition.value?.parameterSchema || []).reduce((accumulator, parameter) => {
+      if (parameter.type !== 'text') return accumulator
+
+      accumulator[parameter.key] = rememberedState.value.textHistory[parameter.key] || []
+      return accumulator
+    }, {})
+  )
   const canDownload = computed(() => Boolean(currentResult.value))
   const canDownloadRaw = computed(() =>
     Boolean(
@@ -26,16 +54,55 @@
   )
 
   watch(selectedExportId, value => {
-    parameterValues.value = getInitialParams(getExportDefinition(value))
+    const nextDefinition = getExportDefinition(value)
+    const nextParameterValues = mergeParamsForExportChange(nextDefinition, {
+      currentParams: parameterValues.value,
+      touchedParams: touchedParameters.value,
+      rememberedValues: rememberedState.value.lastValues
+    })
+
+    rememberedState.value = saveRememberedState(
+      rememberSelectedExport(rememberedState.value, value)
+    )
+    parameterValues.value = nextParameterValues
+    touchedParameters.value = Object.keys(nextParameterValues).reduce((accumulator, key) => {
+      if (!touchedParameters.value[key]) return accumulator
+      if (nextParameterValues[key] === undefined || nextParameterValues[key] === null || nextParameterValues[key] === '') {
+        return accumulator
+      }
+
+      accumulator[key] = true
+      return accumulator
+    }, {})
     currentResult.value = null
     loadError.value = null
   })
 
-  function updateParameter({ key, value }) {
+  function updateParameter({ parameter, value }) {
+    const key = parameter.key
+
     parameterValues.value = {
       ...parameterValues.value,
       [key]: value
     }
+    touchedParameters.value = {
+      ...touchedParameters.value,
+      [key]: true
+    }
+    currentResult.value = null
+    loadError.value = null
+  }
+
+  function commitParameter({ parameter, value }) {
+    rememberedState.value = saveRememberedState(
+      rememberParameterValue(rememberedState.value, parameter, value)
+    )
+  }
+
+  function removeRememberedParameterOption({ key, value }) {
+    rememberedState.value = saveRememberedState(
+      removeRememberedTextValue(rememberedState.value, key, value)
+    )
   }
 
   async function loadExport() {
@@ -109,14 +176,16 @@
       <ExportControls
         :definition="selectedDefinition"
         :export-groups="exportGroups"
-        :loading="loading"
         :params="parameterValues"
+        :remembered-text-options="rememberedTextOptions"
         :selected-export-id="selectedExportId"
         :show-download="canDownload"
         :show-raw-download="canDownloadRaw"
         @download="download"
         @download-raw="downloadRaw"
         @logout="logout"
+        @commit:param="commitParameter"
+        @remove:remembered-param-option="removeRememberedParameterOption"
         @submit="loadExport"
         @update:param="updateParameter"
         @update:selected-export-id="selectedExportId = $event"
@@ -143,6 +212,19 @@
         style="display: flex; flex-direction: column; height: 100%;"
       >
         <ExportResultTable :result="currentResult" />
+      </div>
+
+      <div
+        v-else
+        style="display:flex; align-items:center; justify-content:center; flex:1; padding:24px;"
+      >
+        <v-btn
+          color="primary"
+          size="large"
+          @click="loadExport"
+        >
+          load
+        </v-btn>
       </div>
     </div>
   </Suspense>
