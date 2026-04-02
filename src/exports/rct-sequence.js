@@ -49,6 +49,14 @@ export default {
           ELSE NULL
         END`
       : 'NULL'
+
+    const problemDifficultyCase = problems.length > 0
+      ? `CASE object
+          ${problems.map(problem => `WHEN '${problem.id}' THEN ${toSqlLiteral(problem.difficulty)}`).join('\n')}
+          ELSE 'unknown'
+        END`
+      : `'unknown'`
+
     const objectFilter = problemIds.length > 0
       ? `AND object IN (${toSqlList(problemIds)})`
       : 'AND 1 = 0'
@@ -112,6 +120,11 @@ export default {
           key: 'Item Type',
           label: 'Item Type',
           query: `SELECT ${problemKindCase} AS value FROM statements LIMIT 1`
+        },
+        {
+          key: 'Item Difficulty',
+          label: 'Item Difficulty',
+          query: `SELECT ${problemDifficultyCase} AS value FROM statements LIMIT 1`
         },
         {
           key: 'Date',
