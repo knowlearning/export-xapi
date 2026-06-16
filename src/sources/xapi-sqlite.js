@@ -5,6 +5,37 @@ function serializeValue(value) {
   return String(value)
 }
 
+function hasOwn(value, key) {
+  return Boolean(value && Object.prototype.hasOwnProperty.call(value, key))
+}
+
+function getResultResponse(row) {
+  return row?.result && typeof row.result === 'object' && !Array.isArray(row.result) && hasOwn(row.result, 'response')
+    ? row.result.response
+    : undefined
+}
+
+function getSqliteKeys(rows = []) {
+  const keys = []
+  const addKey = key => {
+    if (!keys.includes(key)) keys.push(key)
+  }
+  const standardKeys = ['embed_path', 'source', 'response']
+
+  rows.forEach(row => Object.keys(row || {}).forEach(addKey))
+  standardKeys.forEach(addKey)
+
+  return keys
+}
+
+function getSqliteValue(row, key) {
+  if (key === 'response' && !hasOwn(row, 'response')) {
+    return getResultResponse(row)
+  }
+
+  return row?.[key]
+}
+
 export function createRawData(rows = []) {
   const columns = Object.keys(rows[0] || {})
 
@@ -43,7 +74,7 @@ export async function loadXapiSqliteDataset({
     }
   }
 
-  const keys = Object.keys(rawRows[0])
+  const keys = getSqliteKeys(rawRows)
   const db = new SQLite.Database()
 
   db.run(`
@@ -65,7 +96,7 @@ export async function loadXapiSqliteDataset({
   `)
 
   for (const row of rawRows) {
-    insert.run(keys.map(key => serializeValue(row[key])))
+    insert.run(keys.map(key => serializeValue(getSqliteValue(row, key))))
   }
 
   insert.free()

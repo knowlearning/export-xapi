@@ -307,6 +307,44 @@ test('loadXapiSqliteDataset serializes objects and booleans into SQLite', async 
   statement.free()
 })
 
+test('loadXapiSqliteDataset exposes result.response as a SQL response column for sparse rows', async () => {
+  const SQLite = await getSQLite()
+
+  const dataset = await loadXapiSqliteDataset({
+    context: 'ctx-1',
+    domain: 'xapi.example.test',
+    SQLite,
+    agent: {
+      async query() {
+        return [
+          {
+            id: 'statement-1',
+            authority: 'user-1',
+            verb: 'initialized',
+            stored: '2026-01-01T00:00:00.000Z'
+          },
+          {
+            id: 'statement-2',
+            authority: 'user-1',
+            verb: 'answered',
+            stored: '2026-01-01T00:01:00.000Z',
+            result: { response: 42 }
+          }
+        ]
+      }
+    }
+  })
+
+  assert.deepEqual(dataset.rawData.columns, ['id', 'authority', 'verb', 'stored'])
+
+  const statement = dataset.db.prepare("SELECT response FROM statements WHERE verb = 'answered'")
+  statement.step()
+
+  assert.deepEqual(statement.getAsObject(), { response: '42' })
+
+  statement.free()
+})
+
 test('executeExport runs xAPI SQL plan exports with derived columns and raw data', async () => {
   const SQLite = await getSQLite()
 
@@ -377,6 +415,216 @@ test('executeExport runs xAPI SQL plan exports with derived columns and raw data
   ])
   assert.equal(execution.result.meta.rowCount, 2)
   assert.deepEqual(execution.result.rawData.columns, ['id', 'authority', 'verb'])
+})
+
+test('survey responses export preserves legacy jsonform output format', async () => {
+  const SQLite = await getSQLite()
+  const definition = getExportDefinition('survey-responses')
+  const sequenceId = 'sequence-1'
+  const assignmentId = 'assignment-1'
+  const surveyPageId = 'survey-page-1'
+
+  const execution = await executeExport(definition, {
+    rawParams: { contextId: sequenceId },
+    environment: {},
+    SQLite,
+    agent: {
+      async state(id) {
+        if (id === sequenceId) {
+          return { items: [{ id: surveyPageId }] }
+        }
+
+        if (id === surveyPageId) {
+          return {
+            formData: [
+              { type: 'text', name: 'q1' },
+              { type: 'radio-group', name: 'q2' }
+            ]
+          }
+        }
+
+        throw new Error(`Unexpected state lookup: ${id}`)
+      },
+      async query() {
+        return [
+          {
+            id: 'statement-1',
+            authority: 'student-1',
+            object: surveyPageId,
+            verb: 'initialized',
+            stored: '2026-01-01T00:00:00.000Z',
+            embed_path: [assignmentId, sequenceId, surveyPageId],
+            extensions: {}
+          },
+          {
+            id: 'statement-2',
+            authority: 'student-1',
+            object: 'dashboard',
+            verb: 'initialized',
+            stored: '2026-01-01T00:00:30.000Z',
+            embed_path: [assignmentId, sequenceId, surveyPageId],
+            extensions: {}
+          },
+          {
+            id: 'statement-3',
+            authority: 'student-1',
+            object: 'q1',
+            verb: 'answered',
+            stored: '2026-01-01T00:01:00.000Z',
+            embed_path: [assignmentId, sequenceId, surveyPageId],
+            response: 'old',
+            extensions: { item: { name: 'q1' } }
+          },
+          {
+            id: 'statement-4',
+            authority: 'student-1',
+            object: 'q1',
+            verb: 'answered',
+            stored: '2026-01-01T00:02:00.000Z',
+            embed_path: [assignmentId, sequenceId, surveyPageId],
+            response: 'new',
+            extensions: { item: { name: 'q1' } }
+          },
+          {
+            id: 'statement-5',
+            authority: 'student-1',
+            object: 'q2',
+            verb: 'answered',
+            stored: '2026-01-01T00:03:00.000Z',
+            embed_path: [assignmentId, sequenceId, surveyPageId],
+            response: 'yes',
+            extensions: { item: { name: 'q2' } }
+          },
+          {
+            id: 'statement-6',
+            authority: 'student-1',
+            object: surveyPageId,
+            verb: 'completed',
+            stored: '2026-01-01T00:04:00.000Z',
+            embed_path: [assignmentId, sequenceId, surveyPageId],
+            extensions: {}
+          }
+        ]
+      }
+    }
+  })
+
+  assert.deepEqual(execution.result.columns, [
+    { key: 'user', label: 'user ID' },
+    { key: 'assignment', label: 'assignment ID' },
+    { key: 'q1', label: 'q1' },
+    { key: 'q2', label: 'q2' },
+    { key: 'started', label: 'started' },
+    { key: 'submission timestamp', label: 'submission timestamp' },
+    { key: 'total time spent (seconds)', label: 'total time spent (seconds)' }
+  ])
+  assert.deepEqual(execution.result.rows, [
+    {
+      user: 'student-1',
+      assignment: assignmentId,
+      q1: 'new',
+      q2: 'yes',
+      started: '2026-01-01T00:00:00.000Z',
+      'submission timestamp': '2026-01-01T00:00:30.000Z',
+      'total time spent (seconds)': 239
+    }
+  ])
+})
+
+test('survey responses export supports direct SurveyJS survey contexts', async () => {
+  const SQLite = await getSQLite()
+  const definition = getExportDefinition('survey-responses')
+  const surveyId = 'survey-1'
+
+  const execution = await executeExport(definition, {
+    rawParams: { contextId: surveyId },
+    environment: {},
+    SQLite,
+    agent: {
+      async state(id) {
+        if (id === surveyId) {
+          return {
+            id: surveyId,
+            schema: {
+              pages: [
+                {
+                  elements: [
+                    { type: 'text', name: 'q1' },
+                    {
+                      type: 'panel',
+                      name: 'panel-1',
+                      elements: [{ type: 'radiogroup', name: 'q2' }]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+
+        throw new Error(`Unexpected state lookup: ${id}`)
+      },
+      async query() {
+        return [
+          {
+            id: 'statement-1',
+            authority: 'student-1',
+            object: surveyId,
+            verb: 'initialized',
+            stored: '2026-01-01T00:00:00.000Z',
+            extensions: {}
+          },
+          {
+            id: 'statement-2',
+            authority: 'student-1',
+            object: 'q1',
+            verb: 'answered',
+            stored: '2026-01-01T00:01:00.000Z',
+            result: { response: 42 },
+            extensions: { item: { name: 'q1' } }
+          },
+          {
+            id: 'statement-3',
+            authority: 'student-1',
+            object: 'q2',
+            verb: 'answered',
+            stored: '2026-01-01T00:01:30.000Z',
+            result: { response: 'yes' },
+            extensions: { item: { name: 'q2' } }
+          },
+          {
+            id: 'statement-4',
+            authority: 'student-1',
+            object: surveyId,
+            verb: 'completed',
+            stored: '2026-01-01T00:02:00.000Z',
+            extensions: {}
+          }
+        ]
+      }
+    }
+  })
+
+  assert.deepEqual(execution.result.columns, [
+    { key: 'user', label: 'user ID' },
+    { key: 'assignment', label: 'assignment ID' },
+    { key: 'q1', label: 'q1' },
+    { key: 'q2', label: 'q2' },
+    { key: 'started', label: 'started' },
+    { key: 'submission timestamp', label: 'submission timestamp' },
+    { key: 'total time spent (seconds)', label: 'total time spent (seconds)' }
+  ])
+  assert.deepEqual(execution.result.rows, [
+    {
+      user: 'student-1',
+      assignment: surveyId,
+      q1: '42',
+      q2: 'yes',
+      started: '2026-01-01T00:00:00.000Z',
+      'submission timestamp': '2026-01-01T00:02:00.000Z',
+      'total time spent (seconds)': 119
+    }
+  ])
 })
 
 test('student sequence data export repeats sequence timeout flags onto matching item rows', async () => {
@@ -484,6 +732,7 @@ test('student sequence data export repeats sequence timeout flags onto matching 
       'Sequence Concepts': 'Concept A',
       'Item Position': 0,
       'Item Type': 'multiple_choice',
+      'Item Difficulty': '',
       'Date': '2026-01-01',
       'Time stamp': '2026-01-01T00:00:00.000Z',
       Misconceptions: 'none',
