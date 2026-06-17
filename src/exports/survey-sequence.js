@@ -1,14 +1,41 @@
 
 import { toSqlLiteral } from './sql-utils.js'
 
+const MATRIX_ROW_TYPES = new Set(['matrix', 'matrixdropdown'])
+
+function getMatrixRowName(row) {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) {
+    return row === undefined || row === null ? null : String(row)
+  }
+
+  const value = row.name ?? row.value
+
+  return value === undefined || value === null ? null : String(value)
+}
+
+function getMatrixRowNames(item) {
+  return Array.isArray(item?.rows)
+    ? item.rows.map(getMatrixRowName).filter(Boolean)
+    : []
+}
+
 function getFormDataNames(page) {
   return Array.isArray(page?.formData)
-    ? page.formData.map(field => field?.name).filter(Boolean)
+    ? page.formData.flatMap(field => (
+      MATRIX_ROW_TYPES.has(field?.type)
+        ? getMatrixRowNames(field)
+        : [field?.name].filter(Boolean)
+    ))
     : []
 }
 
 function collectSchemaElementNames(elements = [], names = []) {
   for (const element of elements || []) {
+    if (MATRIX_ROW_TYPES.has(element?.type)) {
+      names.push(...getMatrixRowNames(element))
+      continue
+    }
+
     if (
       element?.name
       && !['expression', 'html', 'image', 'panel'].includes(element.type)

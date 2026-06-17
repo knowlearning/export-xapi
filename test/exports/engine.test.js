@@ -627,6 +627,134 @@ test('survey responses export supports direct SurveyJS survey contexts', async (
   ])
 })
 
+test('survey responses export expands SurveyJS matrix rows into columns', async () => {
+  const SQLite = await getSQLite()
+  const definition = getExportDefinition('survey-responses')
+  const surveyId = 'survey-1'
+
+  const execution = await executeExport(definition, {
+    rawParams: { contextId: surveyId },
+    environment: {},
+    SQLite,
+    agent: {
+      async state(id) {
+        if (id === surveyId) {
+          return {
+            id: surveyId,
+            schema: {
+              pages: [
+                {
+                  elements: [
+                    { type: 'text', name: 'q1' },
+                    {
+                      type: 'matrix',
+                      name: 'likertMatrix',
+                      columns: ['agree', 'disagree'],
+                      rows: [
+                        { value: 'row-1', text: 'Row 1' },
+                        'row-2'
+                      ]
+                    },
+                    {
+                      type: 'matrixdropdown',
+                      name: 'dropdownMatrix',
+                      columns: [{ name: 'choice', choices: ['a', 'b'] }],
+                      rows: ['row-3']
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+
+        throw new Error(`Unexpected state lookup: ${id}`)
+      },
+      async query() {
+        return [
+          {
+            id: 'statement-1',
+            authority: 'student-1',
+            object: surveyId,
+            verb: 'initialized',
+            stored: '2026-01-01T00:00:00.000Z',
+            extensions: {}
+          },
+          {
+            id: 'statement-2',
+            authority: 'student-1',
+            object: 'q1',
+            verb: 'answered',
+            stored: '2026-01-01T00:01:00.000Z',
+            result: { response: 'plain answer' },
+            extensions: { item: { name: 'q1' } }
+          },
+          {
+            id: 'statement-3',
+            authority: 'student-1',
+            object: 'row-1',
+            verb: 'answered',
+            stored: '2026-01-01T00:01:30.000Z',
+            result: { response: 'agree' },
+            extensions: { item: { name: 'row-1' } }
+          },
+          {
+            id: 'statement-4',
+            authority: 'student-1',
+            object: 'row-2',
+            verb: 'answered',
+            stored: '2026-01-01T00:02:00.000Z',
+            result: { response: 'disagree' },
+            extensions: { item: { name: 'row-2' } }
+          },
+          {
+            id: 'statement-5',
+            authority: 'student-1',
+            object: 'row-3',
+            verb: 'answered',
+            stored: '2026-01-01T00:02:30.000Z',
+            result: { response: { choice: 'a' } },
+            extensions: { item: { name: 'row-3' } }
+          },
+          {
+            id: 'statement-6',
+            authority: 'student-1',
+            object: surveyId,
+            verb: 'completed',
+            stored: '2026-01-01T00:03:00.000Z',
+            extensions: {}
+          }
+        ]
+      }
+    }
+  })
+
+  assert.deepEqual(execution.result.columns, [
+    { key: 'user', label: 'user ID' },
+    { key: 'assignment', label: 'assignment ID' },
+    { key: 'q1', label: 'q1' },
+    { key: 'row-1', label: 'row-1' },
+    { key: 'row-2', label: 'row-2' },
+    { key: 'row-3', label: 'row-3' },
+    { key: 'started', label: 'started' },
+    { key: 'submission timestamp', label: 'submission timestamp' },
+    { key: 'total time spent (seconds)', label: 'total time spent (seconds)' }
+  ])
+  assert.deepEqual(execution.result.rows, [
+    {
+      user: 'student-1',
+      assignment: surveyId,
+      q1: 'plain answer',
+      'row-1': 'agree',
+      'row-2': 'disagree',
+      'row-3': '{"choice":"a"}',
+      started: '2026-01-01T00:00:00.000Z',
+      'submission timestamp': '2026-01-01T00:03:00.000Z',
+      'total time spent (seconds)': 179
+    }
+  ])
+})
+
 test('student sequence data export repeats sequence timeout flags onto matching item rows', async () => {
   const SQLite = await getSQLite()
   const definition = getExportDefinition('rct-student-sequence-data')
