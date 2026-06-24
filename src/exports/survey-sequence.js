@@ -191,12 +191,23 @@ export default {
           key: 'total time spent (seconds)',
           label: 'total time spent (seconds)',
           query: `
+            WITH heartbeat_time AS (
+              SELECT
+                SUM(CAST(json_extract(extensions, '$.interval') AS REAL)) AS seconds
+              FROM statements
+              WHERE lower(verb) LIKE '%heartbeat%'
+            ),
+            span_time AS (
+              SELECT
+                CAST(
+                  (julianday(MAX(stored)) - julianday(MIN(stored))) * 86400
+                  AS INTEGER
+                ) AS seconds
+              FROM statements
+            )
             SELECT
-              CAST(
-                (julianday(MAX(stored)) - julianday(MIN(stored))) * 86400
-                AS INTEGER
-              ) AS value
-            FROM statements`
+              COALESCE(CAST(heartbeat_time.seconds AS INTEGER), span_time.seconds) AS value
+            FROM heartbeat_time, span_time`
         }
       ]
     }

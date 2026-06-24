@@ -499,6 +499,24 @@ test('survey responses export preserves legacy jsonform output format', async ()
             id: 'statement-6',
             authority: 'student-1',
             object: surveyPageId,
+            verb: 'heartbeat',
+            stored: '2026-01-01T00:03:15.000Z',
+            embed_path: [assignmentId, sequenceId, surveyPageId],
+            extensions: { interval: 20 }
+          },
+          {
+            id: 'statement-7',
+            authority: 'student-1',
+            object: surveyPageId,
+            verb: 'heartbeat',
+            stored: '2026-01-01T00:03:45.000Z',
+            embed_path: [assignmentId, sequenceId, surveyPageId],
+            extensions: { interval: 40 }
+          },
+          {
+            id: 'statement-8',
+            authority: 'student-1',
+            object: surveyPageId,
             verb: 'completed',
             stored: '2026-01-01T00:04:00.000Z',
             embed_path: [assignmentId, sequenceId, surveyPageId],
@@ -526,7 +544,7 @@ test('survey responses export preserves legacy jsonform output format', async ()
       q2: 'yes',
       started: '2026-01-01T00:00:00.000Z',
       'submission timestamp': '2026-01-01T00:00:30.000Z',
-      'total time spent (seconds)': 239
+      'total time spent (seconds)': 60
     }
   ])
 })
@@ -596,6 +614,22 @@ test('survey responses export supports direct SurveyJS survey contexts', async (
             id: 'statement-4',
             authority: 'student-1',
             object: surveyId,
+            verb: 'heartbeat',
+            stored: '2026-01-01T00:01:45.000Z',
+            extensions: { interval: 45 }
+          },
+          {
+            id: 'statement-5',
+            authority: 'student-1',
+            object: surveyId,
+            verb: 'heartbeat',
+            stored: '2026-01-01T00:01:50.000Z',
+            extensions: { interval: 15 }
+          },
+          {
+            id: 'statement-6',
+            authority: 'student-1',
+            object: surveyId,
             verb: 'completed',
             stored: '2026-01-01T00:02:00.000Z',
             extensions: {}
@@ -622,7 +656,7 @@ test('survey responses export supports direct SurveyJS survey contexts', async (
       q2: 'yes',
       started: '2026-01-01T00:00:00.000Z',
       'submission timestamp': '2026-01-01T00:02:00.000Z',
-      'total time spent (seconds)': 119
+      'total time spent (seconds)': 60
     }
   ])
 })
@@ -753,6 +787,46 @@ test('survey responses export expands SurveyJS matrix rows into columns', async 
       'total time spent (seconds)': 179
     }
   ])
+})
+
+test('survey responses export falls back to stored timestamp span when no heartbeats exist', async () => {
+  const SQLite = await getSQLite()
+  const definition = getExportDefinition('survey-responses')
+  const surveyId = 'survey-without-heartbeats'
+
+  const execution = await executeExport(definition, {
+    rawParams: { contextId: surveyId },
+    environment: {},
+    SQLite,
+    agent: {
+      async state(id) {
+        if (id === surveyId) return { id: surveyId, schema: { pages: [] } }
+        throw new Error(`Unexpected state lookup: ${id}`)
+      },
+      async query() {
+        return [
+          {
+            id: 'statement-1',
+            authority: 'student-1',
+            object: surveyId,
+            verb: 'initialized',
+            stored: '2026-01-01T00:00:00.000Z',
+            extensions: {}
+          },
+          {
+            id: 'statement-2',
+            authority: 'student-1',
+            object: surveyId,
+            verb: 'completed',
+            stored: '2026-01-02T00:00:00.000Z',
+            extensions: {}
+          }
+        ]
+      }
+    }
+  })
+
+  assert.equal(execution.result.rows[0]['total time spent (seconds)'], 86400)
 })
 
 test('student sequence data export repeats sequence timeout flags onto matching item rows', async () => {
