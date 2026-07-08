@@ -37,6 +37,20 @@ export default {
     )
 
     const correctAnswers = problems.map(problem => getCorrectAnswerText(problem))
+    const misconceptions = state.misconceptions || []
+    const problemMisconceptionNames = problems.map(problem => {
+      const problemMisconceptionsIds = problem.misconceptions || []
+      const problemMisconceptions = problemMisconceptionsIds.map(misconceptionId => misconceptions[misconceptionId]).filter(a => !!a);
+      return problemMisconceptions.map(m => m.name).join('; ')
+    });
+
+    const misconceptionNamesCase = problems.length > 0
+      ? `CASE object
+          ${problems.map((problem, index) => `WHEN '${problem.id}' THEN ${toSqlLiteral(problemMisconceptionNames[index])}`).join('\n')}
+          ELSE NULL
+        END`
+      : 'NULL'
+
     const problemKindCase = problems.length > 0
       ? `CASE object
           ${problems.map(problem => `WHEN '${problem.id}' THEN ${toSqlLiteral(problem.kind)}`).join('\n')}
@@ -46,6 +60,14 @@ export default {
     const correctAnswerCase = problems.length > 0
       ? `CASE object
           ${problems.map((problem, index) => `WHEN '${problem.id}' THEN ${toSqlLiteral(correctAnswers[index])}`).join('\n')}
+          ELSE NULL
+        END`
+      : 'NULL'
+
+    const itemCannonicalIds = problems.map(problem => problem.canonicalId || problem.cannonicalId).filter(Boolean);
+    const itemCannonicalIdCase = itemCannonicalIds.length > 0
+      ? `CASE object
+          ${problems.map(problem => `WHEN '${problem.id}' THEN ${toSqlLiteral(problem.canonicalId)}`).join('\n')}
           ELSE NULL
         END`
       : 'NULL'
@@ -79,7 +101,8 @@ export default {
         object AS item_id
       FROM statements
       WHERE json_array_length(embed_path) = 2
-        ${objectFilter};`,
+        ${objectFilter}
+      ORDER BY assignment_id, student_id, ${itemPositionCase};`,
       rowScopeQuery: `SELECT * FROM statements
         WHERE authority = $student_id
           AND json_extract(embed_path, '$[0]') = $assignment_id
@@ -92,24 +115,14 @@ export default {
           )`,
       derivedColumns: [
         {
-          key: 'Sequence Order',
-          label: 'Sequence Order',
-          query: `SELECT json_extract(extensions, '$.sequenceEvent.sequenceOrder') AS value
-            FROM statements
-            WHERE verb NOT IN ('attempt_timeout', 'review_timeout')
-              AND json_extract(extensions, '$.sequenceEvent.sequenceOrder') IS NOT NULL
-            ORDER BY stored ASC
-            LIMIT 1`
+          key: 'Item Canonical ID',
+          label: 'Item Canonical ID',
+          query: `SELECT ${itemCannonicalIdCase} AS value FROM statements LIMIT 1`
         },
         {
           key: 'Sequence Name',
           label: 'Sequence Name',
           query: `SELECT ${toSqlLiteral(sequenceName)} AS value`
-        },
-        {
-          key: 'Sequence Concepts',
-          label: 'Sequence Concepts',
-          query: `SELECT ${toSqlLiteral(sequenceDescription)} AS value`
         },
         {
           key: 'Item Position',
@@ -127,6 +140,11 @@ export default {
           query: `SELECT ${problemDifficultyCase} AS value FROM statements LIMIT 1`
         },
         {
+          key: 'Item Misconceptions',
+          label: 'Item Misconceptions',
+          query: `SELECT ${misconceptionNamesCase} AS value FROM statements LIMIT 1`
+        },
+        {
           key: 'Date',
           label: 'Date',
           query: `SELECT DATE(stored) AS value FROM statements WHERE verb = 'initialized' ORDER BY stored ASC LIMIT 1`
@@ -135,11 +153,6 @@ export default {
           key: 'Time stamp',
           label: 'Time stamp',
           query: `SELECT stored AS value FROM statements WHERE verb = 'initialized' ORDER BY stored ASC LIMIT 1`
-        },
-        {
-          key: 'Misconceptions',
-          label: 'Misconceptions',
-          query: `SELECT json_extract(extensions, '$.sequenceEvent.misconception') AS value FROM statements WHERE verb = 'submitted' ORDER BY stored DESC LIMIT 1`
         },
         {
           key: 'Answer 1',
@@ -216,29 +229,32 @@ export default {
           key: 'Time spent on item (exercise) in seconds',
           label: 'Time spent on item (exercise) in seconds',
           query: `
-              WITH event_groups AS (
+              WITH sessions AS (
                 SELECT
                   verb,
                   stored,
                   SUM(CASE WHEN verb = 'initialized' THEN 1 ELSE 0 END)
-                  OVER (ORDER BY stored ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS group_id
+                    OVER (ORDER BY stored ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS session_id
                 FROM statements
-                WHERE verb IN ('initialized', 'submitted', 'skipped')
+                WHERE verb IN ('initialized', 'submitted', 'skipped', 'attempt_timeout_on_problem', 'heartbeat')
               ),
-              time_pairs AS (
+              session_times AS (
                 SELECT
-                  group_id,
+                  session_id,
                   MIN(CASE WHEN verb = 'initialized' THEN stored END) AS start_time,
-                  MAX(CASE WHEN verb IN ('submitted', 'skipped') THEN stored END) AS end_time
-                FROM event_groups
-                GROUP BY group_id
+                  COALESCE(
+                    MAX(CASE WHEN verb = 'attempt_timeout_on_problem' THEN stored END),
+                    MAX(CASE WHEN verb = 'skipped' THEN stored END),
+                    MAX(CASE WHEN verb IN ('submitted', 'heartbeat') THEN stored END)
+                  ) AS end_time
+                FROM sessions
+                GROUP BY session_id
               )
-              SELECT
-                CAST(SUM(
-                  (julianday(end_time) - julianday(start_time)) * 86400
-                ) AS INTEGER) AS value
-              FROM time_pairs
-              WHERE start_time IS NOT NULL AND end_time IS NOT NULL
+              SELECT COALESCE(CAST(SUM(
+                (julianday(end_time) - julianday(start_time)) * 86400
+              ) AS INTEGER), 0) AS value
+              FROM session_times
+              WHERE start_time IS NOT NULL AND end_time > start_time
             `
         },
         {
