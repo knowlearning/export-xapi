@@ -42,12 +42,17 @@ export function getCorrectAnswerText(problem) {
         case 'word_problem':
             const answerBlockValues = problem.answerBlocks.map(
                 block => {
+                    const allValues = [block.value, ...(block.alternateValues || [])];
+                    const valueText = allValues.length > 1
+                        ? `${block.value} (or: ${block.alternateValues.join(', ')})`
+                        : block.value;
+
                     if (block.label && block.orientation === 'label_first') {
-                        return `${block.label} ${block.value}`;
+                        return `${block.label} ${valueText}`;
                     } else if (block.label && block.orientation === 'value_first') {
-                        return `${block.value} ${block.label}`;
+                        return `${valueText} ${block.label}`;
                     } else {
-                        return block.value;
+                        return valueText;
                     }
                 }
             );
@@ -59,7 +64,12 @@ export function getCorrectAnswerText(problem) {
         case 'fill_in_the_blank':
             correctAnswerText = Object.entries(problem.blanks).map(
                 ([blankId, blankData]) => {
-                    return `${blankId}: ${blankData}`;
+                    const primary = blankData;
+                    const alternates = problem.alternateAnswers?.[blankId] || [];
+                    if (alternates.length > 0) {
+                        return `${blankId}: ${primary} (or: ${alternates.join(', ')})`;
+                    }
+                    return `${blankId}: ${primary}`;
                 }
             ).join('; ');
             break;
