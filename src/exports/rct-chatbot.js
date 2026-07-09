@@ -46,6 +46,7 @@ export default {
 
     const sequenceTopic = state.name || 'Unknown Topic'
 
+    // ToDo: Add the latency (student query timestamp - chatbot response timestamp).
     return {
       mode: 'sql-plan',
       rowKeyQuery: `SELECT DISTINCT
@@ -58,12 +59,6 @@ export default {
         ${itemCannonicalIdCase} AS 'Item Canonical ID',
         json_extract(extensions, '$.chatbotEvent.phase') AS 'Mode',
         ${itemPositionCase} AS 'Item Position at Start',
-        CASE
-          WHEN json_extract(extensions, '$.chatbotEvent.conversationStarterSelection') IS NOT NULL THEN 'Conversation Starter Selection'
-          ELSE 'Chatbot Prompt'
-        END AS 'Event Type',
-        json_extract(extensions, '$.chatbotEvent.conversationStarterSelection.kind') AS 'Starter Kind',
-        json_extract(extensions, '$.chatbotEvent.conversationStarterSelection.timestamp') AS 'Starter Timestamp',
         ROW_NUMBER() OVER (
           PARTITION BY authority, json_extract(embed_path, '$[0]'), object
           ORDER BY stored
@@ -79,10 +74,7 @@ export default {
       FROM statements
       WHERE json_array_length(embed_path) = 2
         AND json_type(extensions, '$.chatbotEvent') IS NOT NULL
-        AND (
-          json_extract(extensions, '$.chatbotEvent.userPrompt.text') IS NOT NULL
-          OR json_extract(extensions, '$.chatbotEvent.conversationStarterSelection') IS NOT NULL
-        )
+        AND json_extract(extensions, '$.chatbotEvent.userPrompt.text') IS NOT NULL
       ORDER BY json_extract(embed_path, '$[0]'), authority, ${itemPositionCase}, stored;`,
       rowKeyColumns: [
         'Student ID',
@@ -94,9 +86,6 @@ export default {
         'Item Canonical ID',
         'Mode',
         'Item Position at Start',
-        'Event Type',
-        'Starter Kind',
-        'Starter Timestamp',
         'Order of Interaction',
         'Student Query',
         'Student Query Meta',
