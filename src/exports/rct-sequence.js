@@ -258,13 +258,6 @@ export default {
             `
         },
         {
-          key: 'Time spent on item (review) in seconds',
-          label: 'Time spent on item (review) in seconds',
-          query: `SELECT CAST((julianday(MAX(CASE WHEN json_extract(extensions, '$.sequenceEvent.phase')='review' THEN stored END)) - julianday(MIN(CASE WHEN json_extract(extensions, '$.sequenceEvent.phase')='review' THEN stored END))) * 86400 AS INTEGER) AS value
-            FROM statements
-            WHERE verb NOT IN ('attempt_timeout', 'review_timeout')`
-        },
-        {
           key: 'attempt_timeout',
           label: 'attempt_timeout',
           query: `SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END AS value
@@ -272,31 +265,24 @@ export default {
             WHERE verb = 'attempt_timeout'`
         },
         {
-          key: 'review_timeout',
-          label: 'review_timeout',
-          query: `SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END AS value
-            FROM statements
-            WHERE verb = 'review_timeout'`
-        },
-        {
           key: '# of messages sent (student)',
           label: '# of messages sent (student)',
-          query: `SELECT COUNT(*) AS value FROM statements WHERE json_type(extensions, '$.chatbotEvent.userPrompt') IS NOT NULL`
+          query: `SELECT COUNT(*) AS value FROM statements WHERE json_extract(extensions, '$.chatbotEvent.userPrompt') IS NOT NULL`
         },
         {
           key: '# of messages sent (chatbot)',
           label: '# of messages sent (chatbot)',
-          query: `SELECT COUNT(*) AS value FROM statements WHERE json_type(extensions, '$.chatbotEvent.botResponse') IS NOT NULL`
+          query: `SELECT COUNT(*) AS value FROM statements WHERE json_extract(extensions, '$.chatbotEvent.botResponse') IS NOT NULL`
         },
         {
           key: 'Student initiated chat',
           label: 'Student initiated chat',
-          query: `SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END AS value FROM statements WHERE json_type(extensions, '$.chatbotEvent.userPrompt') IS NOT NULL`
+          query: `SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END AS value FROM statements WHERE json_extract(extensions, '$.chatbotEvent.userPrompt') IS NOT NULL`
         },
         {
           key: 'timestamp of first interaction with chatbot',
           label: 'timestamp of first interaction with chatbot',
-          query: `SELECT json_extract(extensions, '$.chatbotEvent.userPrompt.timestamp') AS value FROM statements WHERE json_type(extensions, '$.chatbotEvent.userPrompt') IS NOT NULL ORDER BY stored ASC LIMIT 1`
+          query: `SELECT json_extract(extensions, '$.chatbotEvent.userPrompt.timestamp') as value FROM statements WHERE json_extract(extensions, '$.chatbotEvent.userPrompt') IS NOT NULL ORDER BY stored ASC LIMIT 1`
         }
       ]
     }
