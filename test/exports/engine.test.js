@@ -221,7 +221,22 @@ test('student-teacher-class-ids export passes query name, args, and domain throu
           {
             student_id: 'student-1',
             teacher_id: 'teacher-1',
-            class_id: 'class-1'
+            class_id: 'class-1',
+            class_archived: false,
+            timestamp: '2026-07-23T12:00:00.000Z',
+            member_removed: false,
+            treatment: true,
+            control: false
+          },
+          {
+            student_id: 'student-2',
+            teacher_id: 'teacher-1',
+            class_id: 'class-1',
+            class_archived: false,
+            timestamp: '2026-07-23T13:00:00.000Z',
+            member_removed: true,
+            treatment: true,
+            control: false
           }
         ]
       }
@@ -238,16 +253,36 @@ test('student-teacher-class-ids export passes query name, args, and domain throu
   assert.deepEqual(execution.result.columns, [
     { key: 'student_id', label: 'student_id' },
     { key: 'teacher_id', label: 'teacher_id' },
-    { key: 'class_id', label: 'class_id' }
+    { key: 'class_id', label: 'class_id' },
+    { key: 'class_archived', label: 'class_archived' },
+    { key: 'timestamp', label: 'timestamp' },
+    { key: 'member_removed', label: 'member_removed' },
+    { key: 'treatment', label: 'treatment' },
+    { key: 'control', label: 'control' }
   ])
   assert.deepEqual(execution.result.rows, [
     {
       student_id: 'student-1',
       teacher_id: 'teacher-1',
-      class_id: 'class-1'
+      class_id: 'class-1',
+      class_archived: false,
+      timestamp: '2026-07-23T12:00:00.000Z',
+      member_removed: false,
+      treatment: true,
+      control: false
+    },
+    {
+      student_id: 'student-2',
+      teacher_id: 'teacher-1',
+      class_id: 'class-1',
+      class_archived: false,
+      timestamp: '2026-07-23T13:00:00.000Z',
+      member_removed: true,
+      treatment: true,
+      control: false
     }
   ])
-  assert.equal(execution.result.meta.rowCount, 1)
+  assert.equal(execution.result.meta.rowCount, 2)
 })
 
 test('student-teacher-class-ids export handles empty query results', async () => {

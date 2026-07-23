@@ -543,6 +543,11 @@ test('teacher dashboard usage export falls back to the roster for an invalid ass
             {
               class_id: 'class-a',
               student_id: 'former-student',
+              member_removed: true
+            },
+            {
+              class_id: 'class-a',
+              student_id: 'legacy-former-student',
               member_archived: '2026-01-01T00:00:00.000Z'
             },
             {

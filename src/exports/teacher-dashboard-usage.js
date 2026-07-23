@@ -617,12 +617,16 @@ function isArchivedRosterRow(row) {
   const classArchived = parseJson(
     getRosterValue(row, 'class_archived', 'classArchived')
   )
+  const memberRemoved = parseJson(
+    getRosterValue(row, 'member_removed', 'memberRemoved')
+  )
   const memberArchived = parseJson(
     getRosterValue(row, 'member_archived', 'memberArchived')
   )
 
   return (
     classArchived === true
+    || memberRemoved === true
     || (
       memberArchived !== null
       && memberArchived !== undefined
