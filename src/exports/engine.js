@@ -124,6 +124,26 @@ function normalizeResult(result = {}) {
   }
 }
 
+function transformSqlPlanResult(result, plan) {
+  if (!plan.transformRows) return result
+
+  const transformedRows = plan.transformRows(result.rows)
+  if (!Array.isArray(transformedRows)) {
+    throw new Error('SQL plan transformRows must return an array')
+  }
+
+  const rows = normalizeRows(transformedRows, result.columns)
+
+  return {
+    ...result,
+    rows,
+    meta: {
+      ...result.meta,
+      rowCount: rows.length
+    }
+  }
+}
+
 function executeDerivedColumnsPlan({
   SQLite,
   db,
@@ -173,7 +193,7 @@ function executeSqlPlan({
   const { columns: keyColumns, rows: keyRows } = executeQuery(dataset.db, plan.rowKeyQuery)
 
   if (!plan.rowScopeQuery || !plan.derivedColumns?.length) {
-    return normalizeResult({
+    const result = normalizeResult({
       columns: deriveColumns({
         columnKeys: keyColumns,
         displayNames: plan.displayNames
@@ -181,6 +201,8 @@ function executeSqlPlan({
       rows: keyRows,
       rawData: dataset.rawData
     })
+
+    return transformSqlPlanResult(result, plan)
   }
 
   const derivedRows = executeDerivedColumnsPlan({
@@ -191,7 +213,7 @@ function executeSqlPlan({
     plan
   })
 
-  return normalizeResult({
+  const result = normalizeResult({
     columns: [
       ...deriveColumns({
         columnKeys: keyColumns,
@@ -205,6 +227,8 @@ function executeSqlPlan({
     rows: derivedRows,
     rawData: dataset.rawData
   })
+
+  return transformSqlPlanResult(result, plan)
 }
 
 export function getInitialParams(definition) {
@@ -276,12 +300,15 @@ export async function executeExport(definition, {
 
   const contextParameterKey = definition.contextParameterKey || 'contextId'
   const context = params[contextParameterKey]
-  const dataset = await loadXapiSqliteDataset({
-    context,
-    domain,
-    agent: resolvedAgent,
-    SQLite
-  })
+  const dataset = await (
+    result.dataset ??
+    loadXapiSqliteDataset({
+      context,
+      domain,
+      agent: resolvedAgent,
+      SQLite
+    })
+  )
 
   if (!dataset.db) {
     const keyColumns = result.rowKeyColumns || []

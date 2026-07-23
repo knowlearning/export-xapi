@@ -8,7 +8,10 @@ import {
   normalizeParams
 } from '../../src/exports/engine.js'
 import { getExportDefinition } from '../../src/exports/registry.js'
-import { loadXapiSqliteDataset } from '../../src/sources/xapi-sqlite.js'
+import {
+  createXapiSqliteDataset,
+  loadXapiSqliteDataset
+} from '../../src/sources/xapi-sqlite.js'
 
 let sqlitePromise
 
@@ -345,6 +348,121 @@ test('loadXapiSqliteDataset exposes result.response as a SQL response column for
   statement.free()
 })
 
+test('createXapiSqliteDataset creates a queryable dataset from prefiltered raw rows', async () => {
+  const SQLite = await getSQLite()
+  const rawRows = [
+    {
+      id: 'statement-1',
+      authority: 'teacher-1',
+      verb: 'opened-dashboard',
+      extensions: { dashboard: 'live-monitoring' },
+      stored: '2026-01-01T00:00:00.000Z'
+    },
+    {
+      id: 'statement-2',
+      authority: 'teacher-1',
+      verb: 'closed-dashboard',
+      stored: '2026-01-01T00:05:00.000Z'
+    }
+  ]
+
+  const dataset = createXapiSqliteDataset(rawRows, SQLite)
+
+  assert.equal(dataset.tableName, 'statements')
+  assert.equal(dataset.rawRows, rawRows)
+  assert.deepEqual(dataset.rawData.columns, [
+    'id',
+    'authority',
+    'verb',
+    'extensions',
+    'stored'
+  ])
+
+  const statement = dataset.db.prepare(`
+    SELECT verb, extensions
+    FROM statements
+    ORDER BY stored
+  `)
+  const rows = []
+
+  while (statement.step()) rows.push(statement.getAsObject())
+  statement.free()
+
+  assert.deepEqual(rows, [
+    {
+      verb: 'opened-dashboard',
+      extensions: JSON.stringify({ dashboard: 'live-monitoring' })
+    },
+    {
+      verb: 'closed-dashboard',
+      extensions: null
+    }
+  ])
+
+  const sparseStatement = dataset.db.prepare(`
+    SELECT source, actor, object, embed_path, domain, response
+    FROM statements
+    WHERE id = 'statement-1'
+  `)
+  sparseStatement.step()
+
+  assert.deepEqual(sparseStatement.getAsObject(), {
+    source: null,
+    actor: null,
+    object: null,
+    embed_path: null,
+    domain: null,
+    response: null
+  })
+  sparseStatement.free()
+})
+
+test('createXapiSqliteDataset gives empty prefiltered datasets a stable statement schema', async () => {
+  const SQLite = await getSQLite()
+  const dataset = createXapiSqliteDataset([], SQLite)
+  const statement = dataset.db.prepare('PRAGMA table_info(statements)')
+  const columns = []
+
+  while (statement.step()) columns.push(statement.getAsObject().name)
+  statement.free()
+
+  assert.deepEqual(columns, [
+    'id',
+    'source',
+    'actor',
+    'authority',
+    'verb',
+    'object',
+    'embed_path',
+    'stored',
+    'extensions',
+    'domain',
+    'response'
+  ])
+  assert.deepEqual(dataset.rawRows, [])
+  assert.deepEqual(dataset.rawData, {
+    kind: 'xapi-statements',
+    columns: [],
+    rows: []
+  })
+})
+
+test('createXapiSqliteDataset can omit the retained raw download matrix', async () => {
+  const SQLite = await getSQLite()
+  const dataset = createXapiSqliteDataset(
+    [{ id: 'statement-1', verb: 'assigned' }],
+    SQLite,
+    { includeRawData: false }
+  )
+  const statement = dataset.db.prepare('SELECT verb FROM statements')
+
+  statement.step()
+  assert.deepEqual(statement.getAsObject(), { verb: 'assigned' })
+  assert.equal(dataset.rawRows, null)
+  assert.equal(dataset.rawData, null)
+  statement.free()
+})
+
 test('executeExport runs xAPI SQL plan exports with derived columns and raw data', async () => {
   const SQLite = await getSQLite()
 
@@ -415,6 +533,115 @@ test('executeExport runs xAPI SQL plan exports with derived columns and raw data
   ])
   assert.equal(execution.result.meta.rowCount, 2)
   assert.deepEqual(execution.result.rawData.columns, ['id', 'authority', 'verb'])
+})
+
+test('executeExport runs SQL plans against a prebuilt xAPI dataset without loading a context', async () => {
+  const SQLite = await getSQLite()
+  const dataset = createXapiSqliteDataset([
+    { id: 'statement-1', authority: 'teacher-a', verb: 'opened-dashboard' },
+    { id: 'statement-2', authority: 'teacher-a', verb: 'closed-dashboard' },
+    { id: 'statement-3', authority: 'teacher-b', verb: 'opened-dashboard' }
+  ], SQLite)
+  const definition = {
+    id: 'prefiltered-sql-test',
+    sourceType: 'xapi-sqlite',
+    parameterSchema: [
+      {
+        key: 'domain',
+        label: 'Domain',
+        type: 'text',
+        required: true
+      }
+    ],
+    async run() {
+      return {
+        mode: 'sql-plan',
+        dataset,
+        displayNames: {
+          teacher_id: 'Teacher ID',
+          dashboard_events: 'Dashboard events'
+        },
+        rowKeyQuery: `
+          SELECT
+            authority AS teacher_id,
+            COUNT(*) AS dashboard_events
+          FROM statements
+          GROUP BY authority
+          ORDER BY authority
+        `
+      }
+    }
+  }
+
+  const execution = await executeExport(definition, {
+    rawParams: { domain: 'district.example.test' },
+    environment: {},
+    SQLite,
+    agent: {
+      async query() {
+        assert.fail('A prebuilt SQL dataset must not fetch statements-in-context')
+      }
+    }
+  })
+
+  assert.deepEqual(execution.result.columns, [
+    { key: 'teacher_id', label: 'Teacher ID' },
+    { key: 'dashboard_events', label: 'Dashboard events' }
+  ])
+  assert.deepEqual(execution.result.rows, [
+    { teacher_id: 'teacher-a', dashboard_events: 2 },
+    { teacher_id: 'teacher-b', dashboard_events: 1 }
+  ])
+  assert.deepEqual(execution.result.rawData.columns, ['id', 'authority', 'verb'])
+})
+
+test('executeExport applies SQL plan transformRows after row normalization', async () => {
+  const SQLite = await getSQLite()
+  const dataset = createXapiSqliteDataset([
+    { id: 'statement-1', verb: 'initialized' }
+  ], SQLite)
+  const definition = {
+    id: 'sql-transform-test',
+    sourceType: 'xapi-sqlite',
+    parameterSchema: [],
+    async run() {
+      return {
+        mode: 'sql-plan',
+        dataset,
+        rowKeyQuery: `
+          SELECT
+            id,
+            verb = 'initialized' AS started
+          FROM statements
+        `,
+        transformRows(rows) {
+          assert.deepEqual(rows, [
+            { id: 'statement-1', started: 1 }
+          ])
+
+          return rows.map(row => ({
+            ...row,
+            started: row.started === 1
+          }))
+        }
+      }
+    }
+  }
+
+  const execution = await executeExport(definition, {
+    environment: {},
+    SQLite,
+    agent: {
+      async query() {
+        assert.fail('A prebuilt SQL dataset must not fetch statements-in-context')
+      }
+    }
+  })
+
+  assert.deepEqual(execution.result.rows, [
+    { id: 'statement-1', started: true }
+  ])
+  assert.equal(execution.result.meta.rowCount, 1)
 })
 
 test('survey responses export preserves legacy jsonform output format', async () => {

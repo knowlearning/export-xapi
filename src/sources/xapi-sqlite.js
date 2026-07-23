@@ -20,7 +20,19 @@ function getSqliteKeys(rows = []) {
   const addKey = key => {
     if (!keys.includes(key)) keys.push(key)
   }
-  const standardKeys = ['embed_path', 'source', 'response']
+  const standardKeys = [
+    'id',
+    'source',
+    'actor',
+    'authority',
+    'verb',
+    'object',
+    'embed_path',
+    'stored',
+    'extensions',
+    'domain',
+    'response'
+  ]
 
   rows.forEach(row => Object.keys(row || {}).forEach(addKey))
   standardKeys.forEach(addKey)
@@ -48,32 +60,12 @@ export function createRawData(rows = []) {
   }
 }
 
-export async function loadXapiSqliteDataset({
-  context,
-  domain,
-  agent,
-  SQLite
-}) {
-  const resolvedAgent = agent || globalThis.Agent
-
-  if (!context) {
-    throw new Error('Context ID is required to load xAPI statements')
-  }
-
-  if (!resolvedAgent) {
-    throw new Error('Agent is not available')
-  }
-
-  const rawRows = await resolvedAgent.query('statements-in-context', [context], domain)
-  if (rawRows.length === 0) {
-    return {
-      db: null,
-      rawRows,
-      rawData: createRawData(rawRows),
-      tableName: 'statements'
-    }
-  }
-
+export function createXapiSqliteDataset(
+  rawRows = [],
+  SQLite,
+  { includeRawData = true } = {}
+) {
+  const rawData = includeRawData ? createRawData(rawRows) : null
   const keys = getSqliteKeys(rawRows)
   const db = new SQLite.Database()
 
@@ -103,8 +95,38 @@ export async function loadXapiSqliteDataset({
 
   return {
     db,
-    rawRows,
-    rawData: createRawData(rawRows),
+    rawRows: includeRawData ? rawRows : null,
+    rawData,
     tableName: 'statements'
   }
+}
+
+export async function loadXapiSqliteDataset({
+  context,
+  domain,
+  agent,
+  SQLite
+}) {
+  const resolvedAgent = agent || globalThis.Agent
+
+  if (!context) {
+    throw new Error('Context ID is required to load xAPI statements')
+  }
+
+  if (!resolvedAgent) {
+    throw new Error('Agent is not available')
+  }
+
+  const rawRows = await resolvedAgent.query('statements-in-context', [context], domain)
+
+  if (rawRows.length === 0) {
+    return {
+      db: null,
+      rawRows,
+      rawData: createRawData(rawRows),
+      tableName: 'statements'
+    }
+  }
+
+  return createXapiSqliteDataset(rawRows, SQLite)
 }
