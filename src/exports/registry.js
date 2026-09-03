@@ -4,6 +4,7 @@ import surveySequenceExport from './survey-sequence.js'
 import sequenceSummaryExport from './sequence-summary.js'
 import studentTeacherClassIdsExport from './student-teacher-class-ids.js'
 import teacherDashboardUsageExport from './teacher-dashboard-usage.js'
+import teacherTreatmentControlExport from './teacher-treatment-control.js'
 
 export const exportDefinitions = [
   rctSequenceExport,
@@ -11,7 +12,8 @@ export const exportDefinitions = [
   surveySequenceExport,
   sequenceSummaryExport,
   studentTeacherClassIdsExport,
-  teacherDashboardUsageExport
+  teacherDashboardUsageExport,
+  teacherTreatmentControlExport
 ]
 
 export function getExportDefinition(exportId) {
