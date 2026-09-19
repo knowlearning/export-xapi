@@ -1,5 +1,5 @@
 import rctSequenceExport from './rct-sequence.js'
-import rctChatbotExport from './rct-chatbot.js'
+// import rctChatbotExport from './rct-chatbot.js'
 import surveySequenceExport from './survey-sequence.js'
 import sequenceSummaryExport from './sequence-summary.js'
 import studentTeacherClassIdsExport from './student-teacher-class-ids.js'
@@ -8,7 +8,7 @@ import teacherTreatmentControlExport from './teacher-treatment-control.js'
 
 export const exportDefinitions = [
   rctSequenceExport,
-  rctChatbotExport,
+  // rctChatbotExport,
   surveySequenceExport,
   sequenceSummaryExport,
   studentTeacherClassIdsExport,

@@ -63,12 +63,12 @@ export default {
           PARTITION BY authority, json_extract(embed_path, '$[0]'), object
           ORDER BY stored
         ) - 1 AS 'Order of Interaction',
-        json_extract(extensions, '$.chatbotEvent.userPrompt.text') AS 'Student Query',
-        json_extract(extensions, '$.chatbotEvent.userPrompt.meta') AS 'Student Query Meta',
+        -- json_extract(extensions, '$.chatbotEvent.userPrompt.text') AS 'Student Query',
+        -- json_extract(extensions, '$.chatbotEvent.userPrompt.meta') AS 'Student Query Meta',
         json_extract(extensions, '$.chatbotEvent.userPrompt.timestamp') AS 'Student Query Timestamp',
-        json_extract(extensions, '$.chatbotEvent.botResponse.text') AS 'Chatbot Response',
+        -- json_extract(extensions, '$.chatbotEvent.botResponse.text') AS 'Chatbot Response',
         json_extract(extensions, '$.chatbotEvent.botResponse.timestamp') AS 'Chatbot Response Timestamp',
-        json_extract(extensions, '$.chatbotEvent.botResponse.meta') AS 'LLM Instructions Meta',
+        -- json_extract(extensions, '$.chatbotEvent.botResponse.meta') AS 'LLM Instructions Meta',
         json_extract(extensions, '$.chatbotEvent.accuracyState') AS 'Accuracy State',
         CASE WHEN json_extract(extensions, '$.chatbotEvent.pii') = true THEN 1 ELSE 0 END AS 'PII'
       FROM statements
@@ -87,12 +87,12 @@ export default {
         'Mode',
         'Item Position at Start',
         'Order of Interaction',
-        'Student Query',
-        'Student Query Meta',
+        // 'Student Query',
+        // 'Student Query Meta',
         'Student Query Timestamp',
-        'Chatbot Response',
+        // 'Chatbot Response',
         'Chatbot Response Timestamp',
-        'LLM Instructions Meta',
+        // 'LLM Instructions Meta',
         'Accuracy State',
         'PII',
       ]
