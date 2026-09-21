@@ -52,7 +52,8 @@ const EXPECTED_COLUMNS = [
     label: 'Clicks on exercises in aggregated view'
   },
   { key: 'dashboard_open_count', label: 'Times dashboard was opened' },
-  { key: 'dashboard_close_count', label: 'Times dashboard was closed' }
+  { key: 'dashboard_close_count', label: 'Times dashboard was closed' },
+  { key: 'domain', label: 'Domain' }
 ]
 
 test('teacher dashboard usage export is registered with only a required domain parameter', () => {
@@ -405,7 +406,8 @@ test('teacher dashboard usage export aggregates assignments, rosters, and dashbo
     dashboard_view_clicks: 2,
     aggregated_exercise_clicks: 2,
     dashboard_open_count: 2,
-    dashboard_close_count: 2
+    dashboard_close_count: 2,
+    domain: DOMAIN
   })
 
   assert.deepEqual(rowsByAssignment.get(inactiveAssignmentId), {
@@ -422,7 +424,8 @@ test('teacher dashboard usage export aggregates assignments, rosters, and dashbo
     dashboard_view_clicks: 0,
     aggregated_exercise_clicks: 0,
     dashboard_open_count: 0,
-    dashboard_close_count: 0
+    dashboard_close_count: 0,
+    domain: DOMAIN
   })
 })
 
@@ -500,7 +503,8 @@ test('teacher dashboard usage export prefers the latest assignment student count
       dashboard_view_clicks: 0,
       aggregated_exercise_clicks: 0,
       dashboard_open_count: 0,
-      dashboard_close_count: 0
+      dashboard_close_count: 0,
+      domain: DOMAIN
     }
   ])
 })

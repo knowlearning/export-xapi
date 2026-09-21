@@ -26,7 +26,8 @@ export const TEACHER_TREATMENT_CONTROL_COLUMNS = Object.freeze([
   { key: 'control', label: 'control' },
   { key: 'added_to_teacher', label: 'added to teacher' },
   { key: 'added_to_treatment', label: 'added to treatment' },
-  { key: 'added_to_control', label: 'added to control' }
+  { key: 'added_to_control', label: 'added to control' },
+  { key: 'domain', label: 'Domain' }
 ])
 
 const TAGS_DOMAIN = 'tags.knowlearning.systems'
@@ -118,6 +119,7 @@ export default {
     return {
       columns: TEACHER_TREATMENT_CONTROL_COLUMNS,
       rows: mergeTaggings(teacherTaggings, treatmentTaggings, controlTaggings)
+        .map(row => ({ ...row, domain: params.domain }))
     }
   }
 }

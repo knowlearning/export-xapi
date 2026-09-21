@@ -35,7 +35,8 @@ export const TEACHER_DASHBOARD_COLUMNS = Object.freeze([
     label: 'Clicks on exercises in aggregated view'
   },
   { key: 'dashboard_open_count', label: 'Times dashboard was opened' },
-  { key: 'dashboard_close_count', label: 'Times dashboard was closed' }
+  { key: 'dashboard_close_count', label: 'Times dashboard was closed' },
+  { key: 'domain', label: 'Domain' }
 ])
 
 const XAPI_DOMAIN = 'xapi.knowlearning.systems'
@@ -556,7 +557,8 @@ SELECT
   COALESCE(tm.dashboard_view_clicks, 0) AS dashboard_view_clicks,
   COALESCE(cm.aggregated_exercise_clicks, 0) AS aggregated_exercise_clicks,
   COALESCE(lm.dashboard_open_count, 0) AS dashboard_open_count,
-  COALESCE(lm.dashboard_close_count, 0) AS dashboard_close_count
+  COALESCE(lm.dashboard_close_count, 0) AS dashboard_close_count,
+  NULL AS domain
 FROM assignments a
 LEFT JOIN sequence_names sn ON sn.sequence_id = a.sequence_id
 LEFT JOIN assignment_class_lists cl ON cl.assignment_id = a.assignment_id
@@ -744,7 +746,8 @@ export default {
       transformRows(rows) {
         return rows.map(row => ({
           ...row,
-          started: row.started === 1
+          started: row.started === 1,
+          domain: params.domain
         }))
       }
     }

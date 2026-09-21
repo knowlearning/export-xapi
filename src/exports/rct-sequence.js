@@ -91,14 +91,16 @@ export default {
         student_id: 'user ID',
         sequence_id: 'sequence ID',
         assignment_id: 'assignment ID',
-        item_id: 'item ID'
+        item_id: 'item ID',
+        domain: 'Domain'
       },
-      rowKeyColumns: ['student_id', 'sequence_id', 'assignment_id', 'item_id'],
+      rowKeyColumns: ['student_id', 'sequence_id', 'assignment_id', 'item_id', 'domain'],
       rowKeyQuery: `SELECT DISTINCT
         authority AS student_id,
         ${toSqlLiteral(params.contextId)} AS sequence_id,
         json_extract(embed_path, '$[0]') AS assignment_id,
-        object AS item_id
+        object AS item_id,
+        domain
       FROM statements
       WHERE json_array_length(embed_path) = 2
         ${objectFilter}
@@ -106,6 +108,7 @@ export default {
       rowScopeQuery: `SELECT * FROM statements
         WHERE authority = $student_id
           AND json_extract(embed_path, '$[0]') = $assignment_id
+          AND domain IS $domain
           AND (
             object = $item_id
             OR (

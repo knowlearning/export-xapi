@@ -15,6 +15,14 @@ export default {
   async run({ params, agent }) {
     const rows = await agent.query('student-teacher-class-ids', [], params.domain)
 
-    return { rows }
+    return {
+      columns: [
+        ...Object.keys(rows[0] || {})
+          .filter(key => key !== 'domain')
+          .map(key => ({ key, label: key })),
+        { key: 'domain', label: 'Domain' }
+      ],
+      rows: rows.map(row => ({ ...row, domain: params.domain }))
+    }
   }
 }

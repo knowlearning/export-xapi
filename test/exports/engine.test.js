@@ -258,7 +258,8 @@ test('student-teacher-class-ids export passes query name, args, and domain throu
     { key: 'timestamp', label: 'timestamp' },
     { key: 'member_removed', label: 'member_removed' },
     { key: 'treatment', label: 'treatment' },
-    { key: 'control', label: 'control' }
+    { key: 'control', label: 'control' },
+    { key: 'domain', label: 'Domain' }
   ])
   assert.deepEqual(execution.result.rows, [
     {
@@ -269,7 +270,8 @@ test('student-teacher-class-ids export passes query name, args, and domain throu
       timestamp: '2026-07-23T12:00:00.000Z',
       member_removed: false,
       treatment: true,
-      control: false
+      control: false,
+      domain: 'district.example.test'
     },
     {
       student_id: 'student-2',
@@ -279,7 +281,8 @@ test('student-teacher-class-ids export passes query name, args, and domain throu
       timestamp: '2026-07-23T13:00:00.000Z',
       member_removed: true,
       treatment: true,
-      control: false
+      control: false,
+      domain: 'district.example.test'
     }
   ])
   assert.equal(execution.result.meta.rowCount, 2)
@@ -300,7 +303,7 @@ test('student-teacher-class-ids export handles empty query results', async () =>
     }
   })
 
-  assert.deepEqual(execution.result.columns, [])
+  assert.deepEqual(execution.result.columns, [{ key: 'domain', label: 'Domain' }])
   assert.deepEqual(execution.result.rows, [])
   assert.equal(execution.result.meta.rowCount, 0)
 })
@@ -792,6 +795,7 @@ test('survey responses export preserves legacy jsonform output format', async ()
   assert.deepEqual(execution.result.columns, [
     { key: 'user', label: 'user ID' },
     { key: 'assignment', label: 'assignment ID' },
+    { key: 'domain', label: 'Domain' },
     { key: 'q1', label: 'q1' },
     { key: 'q2', label: 'q2' },
     { key: 'started', label: 'started' },
@@ -802,6 +806,7 @@ test('survey responses export preserves legacy jsonform output format', async ()
     {
       user: 'student-1',
       assignment: assignmentId,
+      domain: '',
       q1: 'new',
       q2: 'yes',
       started: '2026-01-01T00:00:00.000Z',
@@ -904,6 +909,7 @@ test('survey responses export supports direct SurveyJS survey contexts', async (
   assert.deepEqual(execution.result.columns, [
     { key: 'user', label: 'user ID' },
     { key: 'assignment', label: 'assignment ID' },
+    { key: 'domain', label: 'Domain' },
     { key: 'q1', label: 'q1' },
     { key: 'q2', label: 'q2' },
     { key: 'started', label: 'started' },
@@ -914,6 +920,7 @@ test('survey responses export supports direct SurveyJS survey contexts', async (
     {
       user: 'student-1',
       assignment: surveyId,
+      domain: '',
       q1: '42',
       q2: 'yes',
       started: '2026-01-01T00:00:00.000Z',
@@ -1028,6 +1035,7 @@ test('survey responses export expands SurveyJS matrix rows into columns', async 
   assert.deepEqual(execution.result.columns, [
     { key: 'user', label: 'user ID' },
     { key: 'assignment', label: 'assignment ID' },
+    { key: 'domain', label: 'Domain' },
     { key: 'q1', label: 'q1' },
     { key: 'row-1', label: 'row-1' },
     { key: 'row-2', label: 'row-2' },
@@ -1040,6 +1048,7 @@ test('survey responses export expands SurveyJS matrix rows into columns', async 
     {
       user: 'student-1',
       assignment: surveyId,
+      domain: '',
       q1: 'plain answer',
       'row-1': 'agree',
       'row-2': 'disagree',
@@ -1191,6 +1200,7 @@ test('student sequence data export repeats sequence timeout flags onto matching 
       sequence_id: sequenceId,
       assignment_id: assignmentId,
       item_id: problemId,
+      domain: '',
       'Sequence Order': 3,
       'Sequence Name': 'Sequence One',
       'Sequence Concepts': 'Concept A',

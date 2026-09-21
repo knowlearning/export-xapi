@@ -90,12 +90,21 @@ function getNames(pages) {
   return pages.flatMap(getPageQuestionNames)
 }
 
+function getResponseColumnKey(name, names) {
+  if (name !== 'domain') return name
+
+  let key = 'domain_response'
+  while (names.includes(key)) key += '_response'
+  return key
+}
+
 function getRowKeyQuery(mode, contextId) {
   if (mode === 'sequence') {
     return `
         SELECT DISTINCT
           authority AS user,
-          json_extract(embed_path, '$[0]') AS assignment
+          json_extract(embed_path, '$[0]') AS assignment,
+          domain
         FROM statements
         WHERE json_array_length(embed_path) = 3`
   }
@@ -103,7 +112,8 @@ function getRowKeyQuery(mode, contextId) {
   return `
         SELECT DISTINCT
           authority AS user,
-          COALESCE(json_extract(embed_path, '$[0]'), source, ${toSqlLiteral(contextId)}) AS assignment
+          COALESCE(json_extract(embed_path, '$[0]'), source, ${toSqlLiteral(contextId)}) AS assignment,
+          domain
         FROM statements`
 }
 
@@ -112,14 +122,16 @@ function getRowScopeQuery(mode, contextId) {
     return `
         SELECT *
           FROM statements
-          WHERE authority = $user AND json_extract(embed_path, '$[0]') = $assignment`
+          WHERE authority = $user AND json_extract(embed_path, '$[0]') = $assignment
+            AND domain IS $domain`
   }
 
   return `
         SELECT *
           FROM statements
           WHERE authority = $user
-            AND COALESCE(json_extract(embed_path, '$[0]'), source, ${toSqlLiteral(contextId)}) = $assignment`
+            AND COALESCE(json_extract(embed_path, '$[0]'), source, ${toSqlLiteral(contextId)}) = $assignment
+            AND domain IS $domain`
 }
 
 function getSubmissionTimestampQuery(usesLegacyFormData) {
@@ -162,13 +174,13 @@ export default {
 
     return {
       mode: 'sql-plan',
-      displayNames: { user: 'user ID', assignment: 'assignment ID', completed: 'submission timestamp' },
-      rowKeyColumns: ['user', 'assignment'],
+      displayNames: { user: 'user ID', assignment: 'assignment ID', completed: 'submission timestamp', domain: 'Domain' },
+      rowKeyColumns: ['user', 'assignment', 'domain'],
       rowKeyQuery: getRowKeyQuery(surveyContext.mode, params.contextId),
       rowScopeQuery: getRowScopeQuery(surveyContext.mode, params.contextId),
       derivedColumns: [
         ...names.map(name => ({
-          key: name,
+          key: getResponseColumnKey(name, names),
           label: name,
           query: `
             SELECT response AS value

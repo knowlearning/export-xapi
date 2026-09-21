@@ -25,6 +25,10 @@ test('teacher treatment/control export is registered with a required domain', ()
   )
   assert.ok(definition)
   assert.equal(definition.sourceType, 'direct')
+  assert.deepEqual(TEACHER_TREATMENT_CONTROL_COLUMNS.at(-1), {
+    key: 'domain',
+    label: 'Domain'
+  })
   assert.deepEqual(definition.parameterSchema, [
     {
       key: 'domain',
@@ -118,7 +122,8 @@ test('teacher treatment/control export maps domains and merges taggings by teach
       control: true,
       added_to_teacher: '2025-12-30T10:00:00.000Z',
       added_to_treatment: '2026-01-02T10:00:00.000Z',
-      added_to_control: '2026-01-04T10:00:00.000Z'
+      added_to_control: '2026-01-04T10:00:00.000Z',
+      domain: ' France-RCT-2025.PILAProject.org '
     },
     {
       teacher: 'teacher-control',
@@ -126,7 +131,8 @@ test('teacher treatment/control export maps domains and merges taggings by teach
       control: true,
       added_to_teacher: '',
       added_to_treatment: '',
-      added_to_control: '2026-01-03T10:00:00.000Z'
+      added_to_control: '2026-01-03T10:00:00.000Z',
+      domain: ' France-RCT-2025.PILAProject.org '
     },
     {
       teacher: 'teacher-only',
@@ -134,7 +140,8 @@ test('teacher treatment/control export maps domains and merges taggings by teach
       control: false,
       added_to_teacher: '2025-12-31T10:00:00.000Z',
       added_to_treatment: '',
-      added_to_control: ''
+      added_to_control: '',
+      domain: ' France-RCT-2025.PILAProject.org '
     },
     {
       teacher: 'teacher-treatment',
@@ -142,7 +149,8 @@ test('teacher treatment/control export maps domains and merges taggings by teach
       control: false,
       added_to_teacher: '',
       added_to_treatment: '2026-01-01T10:00:00.000Z',
-      added_to_control: ''
+      added_to_control: '',
+      domain: ' France-RCT-2025.PILAProject.org '
     }
   ])
   assert.equal(execution.result.meta.rowCount, 4)

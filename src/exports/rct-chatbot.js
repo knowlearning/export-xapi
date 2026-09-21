@@ -49,6 +49,7 @@ export default {
     // ToDo: Add the latency (student query timestamp - chatbot response timestamp).
     return {
       mode: 'sql-plan',
+      displayNames: { domain: 'Domain' },
       rowKeyQuery: `SELECT DISTINCT
         authority AS 'Student ID',
         json_extract(embed_path, '$[0]') AS 'Assignment ID',
@@ -60,7 +61,7 @@ export default {
         json_extract(extensions, '$.chatbotEvent.phase') AS 'Mode',
         ${itemPositionCase} AS 'Item Position at Start',
         ROW_NUMBER() OVER (
-          PARTITION BY authority, json_extract(embed_path, '$[0]'), object
+          PARTITION BY authority, json_extract(embed_path, '$[0]'), object, domain
           ORDER BY stored
         ) - 1 AS 'Order of Interaction',
         -- json_extract(extensions, '$.chatbotEvent.userPrompt.text') AS 'Student Query',
@@ -70,7 +71,8 @@ export default {
         json_extract(extensions, '$.chatbotEvent.botResponse.timestamp') AS 'Chatbot Response Timestamp',
         -- json_extract(extensions, '$.chatbotEvent.botResponse.meta') AS 'LLM Instructions Meta',
         json_extract(extensions, '$.chatbotEvent.accuracyState') AS 'Accuracy State',
-        CASE WHEN json_extract(extensions, '$.chatbotEvent.pii') = true THEN 1 ELSE 0 END AS 'PII'
+        CASE WHEN json_extract(extensions, '$.chatbotEvent.pii') = true THEN 1 ELSE 0 END AS 'PII',
+        domain
       FROM statements
       WHERE json_array_length(embed_path) = 2
         AND json_type(extensions, '$.chatbotEvent') IS NOT NULL
@@ -95,6 +97,7 @@ export default {
         // 'LLM Instructions Meta',
         'Accuracy State',
         'PII',
+        'domain',
       ]
     }
   }
