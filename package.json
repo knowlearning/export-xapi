@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
-    "@knowlearning/agents": "^0.9.182",
+    "@knowlearning/agents": "^0.9.195",
     "@vitejs/plugin-basic-ssl": "^2.0.0",
     "papaparse": "^5.5.3",
     "sql.js": "^1.13.0",
